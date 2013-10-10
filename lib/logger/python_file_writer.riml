@@ -2,7 +2,9 @@ class PythonFileWriter
   def initialize(sys_path, output_file)
     self.output_file = output_file
 
-    execute(":python import sys")
+    mkdir(fnamemodify(output_file, ':h'), 'p')
+
+    execute(":python import sys, os")
     execute(":python sys.path.append('#{sys_path}')")
     execute(":python from scripts.file_writer import FileWriter")
     execute(":python file_writer = FileWriter('#{output_file}')")
