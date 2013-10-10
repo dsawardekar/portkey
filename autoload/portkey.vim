@@ -6666,7 +6666,7 @@ function! <SID>s:Launcher_launch(strategies, finder_context, options) dict
       let create_if_not_found = 1
       call self.extract_from_source(a:finder_context, a:options)
     endif
-    if (window_mode ==# 'e' || window_mode ==# 'edit') && &hidden ==# 0
+    if (window_mode ==# 'e' || window_mode ==# 'edit') && &hidden ==# 0 && getbufvar(bufname('%'), '&mod')
       let window_mode = 's'
     endif
     let success = buffer_opener.open(filepath, create_if_not_found, window_mode)
@@ -8017,12 +8017,13 @@ function! <SID>s:App_add_extension(extension) dict
 endfunction
 
 " included: 'version.riml'
-let g:portkey_version = '0.1.1'
+let g:portkey_version = '0.1.2'
 " included: 'python_file_writer.riml'
 function! s:PythonFileWriterConstructor(sys_path, output_file)
   let pythonFileWriterObj = {}
   let pythonFileWriterObj.output_file = a:output_file
-  execute ":python import sys"
+  call mkdir(fnamemodify(a:output_file, ':h'), 'p')
+  execute ":python import sys, os"
   execute ":python sys.path.append('" . a:sys_path . "')"
   execute ":python from scripts.file_writer import FileWriter"
   execute ":python file_writer = FileWriter('" . a:output_file . "')"
