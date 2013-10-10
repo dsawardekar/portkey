@@ -1,0 +1,37 @@
+class FinderFacade
+  defm needs
+    return ['finder', 'ranker', 'matcher']
+  end
+
+  defm find(type, context)
+    results = self.find_and_rank(type, context)
+    return self.matcher.shorten(results)
+  end
+
+  defm pick(type, context, filename)
+    results = self.find_and_rank(type, context)
+    return self.matcher.match(filename, results)
+  end
+
+  defm first(type, context)
+    return self.nth(type, context, 1)
+  end
+
+  defm nth(type, context, index)
+    " since 1 based indices
+    result_index = index - 1
+
+    results = self.find_and_rank(type, context)
+    if len(results) > result_index
+      return results[result_index]
+    else
+      return ''
+    end
+  end
+
+  " helpers
+  defm find_and_rank(type, context)
+    results = self.finder.find(type, context)
+    return self.ranker.rank(type, context, results)
+  end
+end

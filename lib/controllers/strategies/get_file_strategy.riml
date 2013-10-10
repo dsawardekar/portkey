@@ -1,0 +1,61 @@
+class GetFileStrategy
+  defm needs
+    return ['finder_facade', 'inflector', 'buffers']
+  end
+
+  defm first(filename, finder_context, options)
+    query_type = finder_context.get_query_type(options)
+    template_context = finder_context.get_template_context(options)
+
+    return self.finder_facade.first(query_type, template_context)
+  end
+
+  " use word under cursor as is
+  defm get_launchable(finder_context, options)
+    filename = options.get_filename()
+    variant = self.get_variant(filename)
+
+    result = self.first(variant, finder_context, options)
+
+    " to chain to the next variant
+    options.set_filename(variant)
+
+    return result
+  end
+
+  defm get_variant(current)
+    return current
+  end
+end
+
+class StripExtStrategy < GetFileStrategy
+  defm get_variant(current)
+    return fnamemodify(current, ':r')
+  end
+end
+
+class AffinizeStrategy < GetFileStrategy
+  defm get_variant(current)
+    current_buffer = self.buffers.get_current()
+    projection = current_buffer.get_projection()
+    affinity = projection.get_affinity()
+
+    if affinity != 'null' && affinity != ''
+      return self.inflector.affinize(current, affinity)
+    else
+      return current
+    end
+  end
+end
+
+class UnderscorizeStrategy < GetFileStrategy
+  defm get_variant(current)
+    return self.inflector.underscorize(current)
+  end
+end
+
+class CamelizeStrategy < GetFileStrategy
+  defm get_variant(current)
+    return self.inflector.camelize(current)
+  end
+end

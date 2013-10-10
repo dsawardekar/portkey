@@ -1,0 +1,37 @@
+class ContextCollection
+  def initialize()
+    self.contexts = {}
+  end
+
+  defm contains(root)
+    return has_key(self.contexts, root)
+  end
+
+  defm add(root)
+    context = self.container.lookup('context')
+    success = context.load(root)
+
+    if success
+      self.contexts[root] = context
+      return true
+    else
+      return false
+    end
+  end
+
+  defm remove(root)
+    if self.contains(root)
+      :unlet self.contexts[a:root]
+    end
+  end
+
+  defm remove_all
+    for root in keys(self.contexts)
+      self.remove(root)
+    end
+  end
+
+  defm get(root)
+    return self.contexts[root]
+  end
+end

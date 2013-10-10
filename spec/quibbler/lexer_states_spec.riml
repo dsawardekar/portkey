@@ -1,0 +1,258 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'token_matcher.riml'
+
+class LexerStatesSpec
+  defm describe
+    return 'LexerStatesSpec'
+  end
+
+  defm before_each
+  end
+
+  defm after_each
+  end
+
+  defm scan(str)
+    lexer = new Lexer()
+    return lexer.scan(str)
+  end
+
+  defm it_can_scan_only_text
+    stream = self.scan('lorem ipsum dolor')
+
+    expect(stream).to_have_token_types(['itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['lorem ipsum dolor', ''])
+  end
+
+  defm it_can_scan_text_with_escaped_percent
+    stream = self.scan('100 is 10%% of 1000')
+
+    expect(stream).to_have_token_types(['itemText', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['100 is 10%', ' of 1000', ''])
+  end
+
+  defm it_can_scan_text_with_escaped_newline
+    stream = self.scan('a\nb')
+
+    expect(stream).to_have_token_types(['itemText', 'itemNewline', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['a', '', 'b', ''])
+  end
+
+  defm it_can_scan_text_with_escaped_r_newline
+    stream = self.scan('a\rb')
+
+    expect(stream).to_have_token_types(['itemText', 'itemNewline', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['a', '', 'b', ''])
+  end
+
+  defm it_can_scan_text_with_escaped_newline_sequence_z
+    stream = self.scan('a\n\n\nb')
+
+    expect(stream).to_have_token_types(['itemText', 'itemNewline', 'itemNewline', 'itemNewline', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['a', '', '', '', 'b', ''])
+  end
+
+  defm it_can_scan_text_with_escaped_tab
+    stream = self.scan('a\tb')
+
+    expect(stream).to_have_token_types(['itemText', 'itemTab', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['a', '', 'b', ''])
+  end
+
+  defm it_can_scan_text_with_escaped_percent
+    stream = self.scan('a%%b')
+
+    expect(stream).to_have_token_types(['itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['a%b', ''])
+  end
+
+  defm it_can_scan_text_with_as_is_percent_f
+    stream = self.scan('a% b')
+
+    expect(stream).to_have_token_types(['itemText', 'itemModifier', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['a', '%', ' b', ''])
+  end
+
+  defm it_can_scan_text_with_as_is_percent_at_end_f
+    stream = self.scan('a%')
+
+    expect(stream).to_have_token_types(['itemText', 'itemModifier', 'itemEOF'])
+    expect(stream).to_have_token_values(['a', '%', ''])
+  end
+
+  defm it_can_scan_text_with_modifier
+    stream = self.scan('a = %s')
+
+    expect(stream).to_have_token_types(['itemText', 'itemModifier', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 's', ''])
+  end
+
+  defm it_can_scan_text_with_uppercase_modifier
+    stream = self.scan('a = %S')
+
+    expect(stream).to_have_token_types(['itemText', 'itemModifier', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 'S', ''])
+  end
+
+  defm it_can_scan_text_with_placeholder
+    stream = self.scan('a = %{source}')
+
+    expect(stream).to_have_token_types(['itemText', 'itemPlaceholder', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 'source', ''])
+  end
+
+  defm it_can_detect_empty_placeholder
+    try
+      stream = self.scan('a = %{}')
+      caught_lexical_error = false
+    catch /LexicalError/
+      caught_lexical_error = true
+    end
+
+    expect(caught_lexical_error).to_be_true()
+  end
+
+  defm it_can_detect_eof_before_closing_parenthesis
+    try
+      stream = self.scan('a = %{foo')
+      caught_lexical_error = false
+    catch /LexicalError/
+      caught_lexical_error = true
+    end
+
+    expect(caught_lexical_error).to_be_true()
+  end
+
+  defm it_can_detect_missing_end_parenthesis
+    try
+      stream = self.scan('a = %{ foo bar')
+      caught_lexical_error = false
+    catch /LexicalError/
+      caught_lexical_error = true
+    end
+
+    expect(caught_lexical_error).to_be_true()
+  end
+
+  defm it_can_detect_missing_filter_name
+    try
+      stream = self.scan('a = %{source|')
+      caught_lexical_error = false
+    catch /LexicalError/
+      caught_lexical_error = true
+    end
+
+    expect(caught_lexical_error).to_be_true()
+  end
+
+  defm it_can_detect_eof_after_filter_name
+    try
+      stream = self.scan('a = %{source|upper')
+      caught_lexical_error = false
+    catch /LexicalError/
+      caught_lexical_error = true
+    end
+
+    expect(caught_lexical_error).to_be_true()
+  end
+
+  defm it_can_detect_whitespace_around_placeholder_name
+    stream = self.scan('a = %{   source    }')
+
+    expect(stream).to_have_token_types(['itemText', 'itemPlaceholder', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 'source', ''])
+  end
+
+  defm it_can_scan_text_with_placeholder_and_filter
+    stream = self.scan('a = %{source|upper}')
+
+    expect(stream).to_have_token_types(['itemText', 'itemPlaceholder', 'itemFilter', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 'source', 'upper', ''])
+  end
+
+  defm it_can_scan_text_with_placeholder_and_filter_chain
+    stream = self.scan('a = %{source|upper|lower|human}')
+
+    expect(stream).to_have_token_types(['itemText', 'itemPlaceholder', 'itemFilter', 'itemFilter', 'itemFilter', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 'source', 'upper', 'lower', 'human', ''])
+  end
+
+  defm it_can_scan_text_with_placeholder_and_filter_chain_with_whitespace
+    stream = self.scan('a = %{ source | upper    | lower | human }')
+
+    expect(stream).to_have_token_types(['itemText', 'itemPlaceholder', 'itemFilter', 'itemFilter', 'itemFilter', 'itemEOF'])
+    expect(stream).to_have_token_values(['a = ', 'source', 'upper', 'lower', 'human', ''])
+  end
+
+  defm it_can_scan_path1
+    stream = self.scan('app/views/%s.html.erb')
+
+    expect(stream).to_have_token_types(['itemText', 'itemModifier', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['app/views/', 's', '.html.erb', ''])
+  end
+
+  defm it_can_scan_path2
+    stream = self.scan('app/views/%{ source | underscore | plural }.html.erb')
+
+    expect(stream).to_have_token_types(['itemText', 'itemPlaceholder', 'itemFilter', 'itemFilter', 'itemText', 'itemEOF'])
+    expect(stream).to_have_token_values(['app/views/', 'source', 'underscore', 'plural', '.html.erb', ''])
+  end
+
+  defm it_can_scan_template1
+    stream = self.scan('class %S < %U\n\tputs "hello from %{source}"\nend')
+    e = []
+    add(e, 'itemText')
+    add(e, 'itemModifier')
+    add(e, 'itemText')
+    add(e, 'itemModifier')
+    add(e, 'itemNewline')
+    add(e, 'itemTab')
+    add(e, 'itemText')
+    add(e, 'itemPlaceholder')
+    add(e, 'itemText')
+    add(e, 'itemNewline')
+    add(e, 'itemText')
+    add(e, 'itemEOF')
+
+    ev = []
+    add(ev, 'class ')
+    add(ev, 'S')
+    add(ev, ' < ')
+    add(ev, 'U')
+    add(ev, '')
+    add(ev, '')
+    add(ev, 'puts "hello from ')
+    add(ev, 'source')
+    add(ev, '"')
+    add(ev, '')
+    add(ev, 'end')
+    add(ev, '')
+
+    expect(stream).to_have_token_types(e)
+    expect(stream).to_have_token_values(ev)
+  end
+
+  defm it_lexes_fast_enough_perf
+    " this test is only performed with --tag perf
+    unless exists('g:speckle_tag') && g:speckle_tag == 'perf'
+      return
+    end
+
+    i = 0
+
+    " A single portkey.json probably won't have more than 100 templates
+    " currently not fast enough to scan everything on load
+    " only scan stuff as it is needed and cache
+    " TODO: benchmark viml string-functions
+    while i < 100
+      stream = self.scan('class %S < %U\n\tputs "hello from %{source}"\nend')
+      i += 1
+    end
+  end
+
+end
+

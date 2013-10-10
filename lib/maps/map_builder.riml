@@ -1,0 +1,63 @@
+class MapBuilder
+  def initialize()
+    self.cmd_mode = 'nnoremap'
+    self.cmd_options = ''
+    self.cmd_params = ''
+    self.cmd_plug = false
+  end
+
+  defm append_to(key, str)
+    key = "cmd_#{key}"
+    self[key] = "#{self[key]} #{str}"
+  end
+
+  defm options(opts)
+    for [name, value] in items(opts)
+      self.option(name, value)
+    end
+  end
+
+  defm option(name, value)
+    if name == 'plug' && value == true
+      self.cmd_plug = true
+    elseif type(value) == type(true)
+      if value == true
+        self.append_to('options', "<#{name}>")
+      end
+    else
+      self.append_to('options', "<#{name}> #{value}")
+    end
+  end
+
+  defm lhs(str)
+    self.cmd_lhs = str
+  end
+
+  defm rhs(str)
+    self.cmd_rhs = str
+  end
+
+  defm mode(str)
+    self.cmd_mode = str
+  end
+
+  defm build
+    cmd = self.cmd_mode
+    cmd .= ' '
+    cmd .= self.cmd_options
+    cmd .= ' '
+
+    if self.cmd_plug
+      cmd .= '<Plug>'
+    end
+
+    cmd .= self.cmd_lhs
+
+    if self.cmd_rhs != ''
+      cmd .= ' '
+      cmd .= self.cmd_rhs
+    end
+
+    return cmd
+  end
+end

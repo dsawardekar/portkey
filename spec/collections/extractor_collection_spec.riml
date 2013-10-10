@@ -1,0 +1,57 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'extractor_collection.riml'
+
+class MockExtractor
+  defm get_name
+    return has_key(self, 'name') ? self.name : 'MockExtractor'
+  end
+
+  defm match(context)
+    return has_key(self, 'match_result') ? self.match_result : false
+  end
+end
+
+class ExtractorCollectionSpec
+  defm it_can_store_extractors
+    c = new ExtractorCollection()
+    c.add_extractor(new MockExtractor())
+    c.add_extractor(new MockExtractor())
+
+    expect(c.size()).to_equal(2)
+  end
+
+  defm it_can_remove_extractor
+    c = new ExtractorCollection()
+    e = new MockExtractor()
+
+    expect(c.has_extractor('MockExtractor')).to_be_false()
+
+    c.add_extractor(e)
+    c.remove_extractor('MockExtractor')
+
+    expect(c.size()).to_equal(0)
+    expect(c.has_extractor('MockExtractor')).to_be_false()
+  end
+
+  defm it_can_match_extractor_with_context
+    c = new ExtractorCollection()
+    e = new MockExtractor()
+    c.add_extractor(e)
+
+    e = new MockExtractor()
+    e.name = 'my_mock'
+    e.match_result = true
+    c.add_extractor(e)
+
+    e = new MockExtractor()
+    c.add_extractor(e)
+
+    res = c.find_extractor({})
+    expect(res.name).to_equal('my_mock')
+
+    res.match_result = false
+    res = c.find_extractor({})
+    expect(res.is_extractor).to_be_false()
+  end
+end

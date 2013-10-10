@@ -1,0 +1,34 @@
+class ShowVersionCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'PortkeyVersion'
+  end
+
+  defm has_ex_mode
+    return true
+  end
+
+  defm run(opts)
+    if self.buffer_has_projection()
+      resource_type = self.get_current_resource_type()
+    else
+      resource_type = "unknown"
+    end
+
+    portkeys = self.get_current_context().get_portkeys()
+    buffer = self.get_current_buffer()
+
+    echo_msg("Portkey: version=#{g:portkey_version}")
+    echo_msg("Current Resource Type: #{resource_type}")
+    echo_msg("Portkeys Loaded:")
+
+    i = 1
+    for portkey in portkeys
+      echo_msg("#{i}. #{buffer.get_portkey_display_path(portkey)}")
+      i += 1
+    end
+  end
+end

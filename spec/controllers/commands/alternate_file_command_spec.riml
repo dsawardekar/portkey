@@ -1,0 +1,166 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class AlternateFileCommandSpec
+  defm describe
+    return 'AlternateFileCommandSpec'
+  end
+
+  defm before_each
+    self.driver = new AppDriver()
+  end
+
+  defm after_each
+    :unlet self.driver
+  end
+
+  defm it_can_complete_alternates
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer('spec/projects/basic/foo.rb')
+    b.find_root()
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " get completion list
+    result = d.do_complete('Alternate', '', 'Alternate', 0)
+
+    " must reflect alternates in portkey.json
+    expect(result).to_equal(['foo_spec'])
+  end
+
+  defm verify_switch(match, buffer, target, opts, win_mode)
+    d = self.driver
+    d.start()
+
+    b = new Buffer(buffer)
+    b.find_root()
+
+    o = d.lookup('file_opener')
+    o.set_exec_mode(false)
+
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+    d.do_complete('Alternate', '', 'Alternate', 0)
+
+    d.do_autocmd(match, target, opts)
+
+    expect(o.exec_cmd).to_match(target)
+    expect(o.exec_cmd).to_match('^:' . win_mode)
+  end
+
+  defm it_can_switch_to_alternate_with_Alternate
+    opts = {}
+    opts.match = 'Alternate'
+
+    self.verify_switch('Alternate', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'edit')
+  end
+
+  defm it_can_switch_to_alternate_with_Alternate
+    opts = {}
+    opts.match = 'Alternate'
+
+    self.verify_switch('Alternate', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'edit')
+  end
+
+
+  defm it_can_switch_to_alternate_with_AE
+    opts = {}
+    opts.match = 'AE'
+
+    self.verify_switch('AE', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'edit')
+  end
+
+  defm it_can_switch_to_alternate_with_AS
+    opts = {}
+    opts.match = 'AS'
+
+    self.verify_switch('AS', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'split')
+  end
+
+  defm it_can_switch_to_alternate_with_AV
+    opts = {}
+    opts.match = 'AV'
+
+    self.verify_switch('AV', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'vsplit')
+  end
+
+  defm it_can_switch_to_alternate_with_AT
+    opts = {}
+    opts.match = 'AT'
+
+    self.verify_switch('AT', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'tab')
+  end
+
+  defm it_can_switch_to_alternate_with_AD
+    opts = {}
+    opts.match = 'AD'
+
+    self.verify_switch('AD', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'read')
+  end
+
+  defm it_can_switch_to_alternate_with_A
+    opts = {}
+    opts.match = 'A'
+
+    self.verify_switch('A', 'spec/projects/basic/foo.rb', 'foo_spec', opts, 'edit')
+  end
+
+  defm verify_alternate(from_buffer, expected)
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer(from_buffer)
+    b.find_root()
+
+    o = d.lookup('file_opener')
+    o.set_exec_mode(false)
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " not e2e but should be good enough
+    opts = {}
+    opts.match = 'Alternate'
+    result = d.do_autocmd('Alternate', '', opts)
+    expect(o.exec_cmd).to_match(expected . '$')
+  end
+
+  defm it_alternates_to_test_from_model
+    rails = 'spec/projects/rails/'
+    self.verify_alternate("#{rails}app/models/post.rb", 'post_spec.rb')
+  end
+
+  defm it_alternates_to_model_from_test
+    rails = 'spec/projects/rails/'
+    self.verify_alternate("#{rails}spec/models/post_spec.rb", 'post.rb')
+  end
+
+  defm it_alternates_to_test_from_controller
+    rails = 'spec/projects/rails/'
+    self.verify_alternate("#{rails}app/controllers/posts_controller.rb", 'posts_controller_spec.rb')
+  end
+
+  defm it_alternates_to_controller_from_test
+    rails = 'spec/projects/rails/'
+    self.verify_alternate("#{rails}spec/controllers/posts_controller_spec.rb", 'posts_controller.rb')
+  end
+
+  defm it_alternates_to_test_from_helper
+    rails = 'spec/projects/rails/'
+    self.verify_alternate("#{rails}app/helpers/posts_helper.rb", 'posts_helper_spec.rb')
+  end
+
+  defm it_alternates_to_helper_from_test_f
+    rails = 'spec/projects/rails/'
+    self.verify_alternate("#{rails}spec/helpers/posts_helper_spec.rb", 'posts_helper.rb')
+  end
+end

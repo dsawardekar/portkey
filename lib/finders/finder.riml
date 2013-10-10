@@ -1,0 +1,76 @@
+class Finder
+  def initialize
+    self.finders = new ObjectCache()
+  end
+
+  " public api
+  " type: projection, resource or file
+  " new finders have higher priority
+  defm add_finder(type, finder)
+    self.finders.insert(type, finder)
+  end
+
+  defm find(type, context)
+    collector = new FinderCollector()
+    finders = self.get_finders(type)
+    files = []
+
+    for finder in finders
+      proceed = finder.find(context, collector)
+      unless proceed
+        break
+      end
+    end
+
+    return collector.get_results()
+  end
+
+  " helpers
+  defm get_finders(type)
+    if self.finders.has(type)
+      return self.finders.get(type)
+    else
+      return []
+    end
+  end
+end
+
+class FinderCollector
+  def initialize
+    self.results = []
+    self.map = {}
+  end
+
+  defm get_results
+    return self.results
+  end
+
+  defm add(*paths)
+    for path in paths
+      unless self.has(path)
+        add(self.results, path)
+        self.map[path] = true
+      end
+    end
+  end
+
+  defm insert(*paths)
+    for path in paths
+      unless self.has(path)
+        insert(self.results, path)
+      end
+    end
+  end
+
+  defm remove(path)
+    if self.has(path)
+      :unlet self.map[a:path]
+      i = index(self.results, path)
+      remove(self.results, i)
+    end
+  end
+
+  defm has(path)
+    return has_key(self.map, path)
+  end
+end

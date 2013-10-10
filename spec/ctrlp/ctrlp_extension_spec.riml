@@ -1,0 +1,132 @@
+riml_include 'dsl.riml'
+riml_include 'delegate.riml'
+riml_include 'ctrlp_extension.riml'
+riml_include 'ctrlp_agent_mock.riml'
+
+class CtrlPExtensionSpec
+  defm describe
+    return 'CtrlPExtensionSpec'
+  end
+
+  defm it_can_store_options
+    opts = {}
+    opts.sort = true
+    opts.specinput = false
+
+    extension = new CtrlPExtension()
+    extension.set_options(opts)
+
+    expect(extension.get_options()).to_have_key('sort')
+    expect(extension.get_options()).to_have_key('specinput')
+  end
+
+  defm it_can_store_name
+    extension = new CtrlPExtension()
+    extension.set_name('Speckle')
+
+    expect(extension.get_name()).to_equal('Speckle')
+  end
+
+  defm it_can_store_agent
+    agent = { 'is_agent': true }
+    extension = new CtrlPExtension()
+    extension.set_agent(agent)
+
+    expect(extension.get_agent().is_agent).to_be_true()
+  end
+
+  defm it_can_generate_runtime_function
+    extension = new CtrlPExtension()
+    cb = extension.new_callback('foo1')
+
+    expect(cb).to_match("DelegateFunction")
+  end
+
+  defm it_can_generate_callback
+    extension = new CtrlPExtension()
+    cb = extension.get_callback('init')
+
+    expect(cb).to_match('DelegateFunction')
+  end
+
+  defm it_can_generate_callback_for_accept
+    extension = new CtrlPExtension()
+    cb = extension.get_callback('accept')
+
+    expect(cb).to_match('DelegateFunction')
+  end
+
+  defm it_can_build_ctrlp_ext_vars
+    opts = {}
+    opts.sort = true
+    opts.specinput = false
+
+    ext = new CtrlPExtension()
+    ext.set_options(opts)
+    ext.set_name('Foo')
+    ext_vars = ext.get_ext_vars()
+
+    expect(ext_vars.sname).to_equal('Foo')
+    expect(ext_vars.lname).to_equal('Foo')
+    expect(ext_vars).to_have_key('init')
+    expect(ext_vars).to_have_key('enter')
+    expect(ext_vars).to_have_key('exit')
+    expect(ext_vars).to_have_key('accept')
+    expect(ext_vars).to_have_key('opts')
+  end
+end
+
+class CtrlPCallbackExecutionSpec
+  defm describe
+    return 'CtrlP Callback Execution'
+  end
+
+  defm it_can_execute_callbacks_on_agent
+    unless exists("g:ctrlp_ext_vars")
+      return
+    end
+
+    opts = {}
+    opts.sort = true
+    opts.specinput = false
+
+    agent = new MockCtrlPAgent()
+    agent.init_result = ['a', 'b', 'c']
+
+    ext = new CtrlPExtension()
+    ext.set_options(opts)
+    ext.set_name('Foo')
+    ext.set_agent(agent)
+
+    ext_vars = ext.enable()
+    expect(ext.get_id()).to_be_gte(1)
+
+    init_call = ":call #{ext_vars.init}"
+    execute(init_call)
+    expect(agent.init_args).to_have_length(0)
+
+    accept_call = ":call #{ext_vars.accept}('foo', 'bar')"
+    execute(accept_call)
+    expect(agent.accept_args).to_equal(['foo', 'bar'])
+
+    enter_call = ":call #{ext_vars.enter}"
+    execute(enter_call)
+    expect(agent.enter_args).to_have_length(0)
+
+    exit_call = ":call #{ext_vars.exit}"
+    execute(exit_call)
+    expect(agent.exit_args).to_have_length(0)
+
+    opts_call = ":call #{ext_vars.opts}"
+    execute(opts_call)
+    expect(agent.opts_args).to_have_length(0)
+
+    " just for e2e testing, to confirm that this does work!
+    "call_cmd = ":#{ext.get_ex_cmd_name()}
+    "execute(call_cmd)
+    "sleep(5)
+
+    ext.disable()
+  end
+
+end

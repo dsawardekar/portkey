@@ -1,0 +1,401 @@
+class Trie
+  def initialize
+    self.root = new TrieNode('root', {})
+    self.root.is_root = true
+  end
+
+  defm add_word(str, *args)
+    if len(args) == 1
+      src = args[0]
+    else
+      src = 0
+    end
+
+    node = self.root
+    n = strlen(str)
+    i = 0
+
+    while i < n
+      char = str[i]
+      if node.contains(char)
+        node = node.get_child(char)
+      else
+        new_node = new TrieNode(char, src)
+        node.add_child(new_node)
+        node = new_node
+      end
+
+      i += 1
+    end
+  end
+
+  defm size()
+    return self.sizeof(self.root)
+  end
+
+  defm sizeof(node)
+    if !has_key(node, 'is_node')
+      return 0
+    end
+
+    if has_key(node, 'is_root')
+      total = 0
+    else
+      total = 1
+    end
+
+    children = node.get_children()
+    n = len(children)
+
+    if n > 0
+      for node in children
+        total += self.sizeof(node)
+      end
+    end
+
+    return total
+  end
+
+  defm keys()
+    return self.keys_with_prefix('')
+  end
+
+  defm keys_with_prefix(prefix)
+    queue = []
+    self.collect(self.get(prefix), prefix, queue)
+
+    return queue
+  end
+
+  defm collect(node, prefix, queue)
+    unless has_key(node, 'is_node') && node.is_node
+      return
+    end
+
+    unless has_key(node, 'is_root')
+      add(queue, prefix)
+    end
+
+    children = node.get_children()
+    for child in children
+      self.collect(child, prefix . child.get_char(), queue)
+    end
+  end
+
+  defm get(prefix)
+    node = self.root
+    n = strlen(prefix)
+    i = 0
+
+    while i < n
+      char = prefix[i]
+      if node.contains(char)
+        node = node.get_child(char)
+      else
+        return {'is_node': false}
+      end
+      i += 1
+    end
+
+    return node
+  end
+
+  defm find(prefix)
+    node = self.get(prefix)
+    return node.is_node
+  end
+
+  defm find_distinct_prefixes()
+    collector = new PrefixCollector()
+    collector.accept_start()
+    self.collect_prefix(collector)
+    collector.accept_end()
+
+    "collector.print_prefixes()
+    return collector.get_prefixes()
+  end
+
+  defm collect_prefix(collector)
+    collector.accept_start_frame()
+
+    children = values(self.root.children)
+    for node in children
+      collector.accept_start_frame()
+      node.collect_prefix(collector)
+      collector.accept_end_frame()
+    end
+
+    collector.accept_end_frame()
+  end
+
+  defm print
+    self.root.print(0, false)
+  end
+
+end
+
+class TrieNode
+  def initialize(char, source)
+    self.char = char
+    self.source = source
+
+    self.children = {}
+    self.terminal = true
+    self.is_node = true
+  end
+
+  defm add_child(node)
+    char = node.get_char()
+
+    if self.contains(char)
+      return false
+    else
+      self.children[char] = node
+      self.terminal = false
+
+      return true
+    end
+  end
+
+  defm remove_child(char)
+    :unlet self.children[a:char]
+    if len(self.children) == 0
+      self.terminal = true
+    end
+  end
+
+  defm collect_prefix(collector)
+    collector.accept_push(self.get_char(), self.source)
+
+    children = self.get_children()
+    n = len(children)
+    if n >= 2
+      for node in children
+        collector.accept_start_frame()
+        node.collect_prefix(collector)
+        collector.accept_end_frame()
+      end
+    elseif n == 1
+      node = children[0]
+      node.collect_prefix(collector)
+    end
+  end
+
+  defm get_children
+    return values(self.children)
+  end
+
+  defm contains(char)
+    return has_key(self.children, char)
+  end
+
+  defm get_char()
+    return self.char
+  end
+
+  defm set_char(char)
+    self.char = char
+  end
+
+  defm get_child(char)
+    return self.children[char]
+  end
+
+  defm get_source
+    return self.source
+  end
+
+  defm get_total_children()
+    return len(self.children)
+  end
+
+  defm has_child
+    return self.terminal
+  end
+
+  defm has_fork()
+    return len(self.children) >= 2
+  end
+
+  defm print(indent, last)
+    indent_count = indent
+    if last
+      self.print_str("\\-#{self.get_char()}", indent_count)
+    else
+      self.print_str("|-#{self.get_char()}", indent_count)
+      indent_count += 1
+    end
+
+    i = 0
+    children = values(self.children)
+    n = len(self.children)
+    last_child = n - 1
+
+    for child in children
+      child.print(indent_count + 1, i == last_child)
+      i += 1
+    end
+  end
+
+  defm print_str(str, indent)
+    indent_str = repeat(' ', indent)
+    info("#{indent_str}#{str}")
+  end
+end
+
+class Prefix
+  def initialize(value, source)
+    self.value = value
+    self.source = source
+  end
+end
+
+class PrefixCollector
+  def initialize
+    self.stack = new Stack()
+    self.prefixes = []
+    self.current_frame = { 'is_frame': false }
+  end
+
+  defm accept_start
+  end
+
+  defm accept_end
+    self.improve_collection()
+  end
+
+  defm accept_start_frame()
+    if self.current_frame.is_frame
+      self.current_frame.set_nesting(true)
+      current_prefix = self.current_frame.get_chars()
+      self.stack.push(self.current_frame)
+    else
+      current_prefix = ''
+    end
+
+    self.current_frame = new StackFrame(current_prefix)
+  end
+
+  defm accept_push(char, source)
+    self.current_frame.append(char)
+    self.current_frame.set_source(source)
+  end
+
+  defm accept_end_frame()
+    unless self.current_frame.get_nesting()
+      self.add_prefix(self.current_frame.get_prefix(), self.current_frame.get_source())
+    end
+
+    if !self.stack.is_empty()
+      self.current_frame = self.stack.pop()
+    else
+      self.current_frame = { 'is_frame': false }
+    end
+  end
+
+  " tries to reduce mappings to 2 letters using start-end chars
+  " concern     - conc  > cc
+  " cell        - ce    > ce
+  " command     - comm  > cm
+  " component   - comp  > cp
+  " controller  - cont  > cr
+  defm improve_collection
+    prefix_values = {}
+    for prefix in self.prefixes
+      prefix_values[prefix.value] = true
+    end
+
+    for prefix in self.prefixes
+      prefix_value = prefix.value
+      len_prefix_value = len(prefix_value)
+
+      " for prefixes > 2 try to shorten to 2 chars
+      " using the last character of the prefix
+      if len_prefix_value > 2
+        last_char = prefix_value[len_prefix_value - 1]
+        new_prefix = prefix_value[0] . last_char
+
+        unless has_key(prefix_values, new_prefix)
+          prefix_values[new_prefix] = true
+          prefix.value = new_prefix
+        end
+      end
+    end
+  end
+
+  defm get_prefixes()
+    return self.prefixes
+  end
+
+  defm add_prefix(value, source)
+    prefix = new Prefix(value, source)
+    add(self.prefixes, prefix)
+  end
+
+  defm print_prefixes
+    for prefix in self.prefixes
+      info("#{prefix.value} - #{prefix.source}")
+    end
+  end
+end
+
+class Stack
+  def initialize
+    self.frames = []
+  end
+
+  defm push(frame)
+    add(self.frames, frame)
+  end
+
+  defm pop()
+    return remove(self.frames, -1)
+  end
+
+  defm is_empty
+    return len(self.frames) == 0
+  end
+end
+
+class StackFrame
+  def initialize(start)
+    self.start = start
+    self.chars = start
+    self.prefix = ''
+    self.is_frame = true
+    self.nesting = false
+    self.source = { 'is_null': true }
+  end
+
+  defm set_source(source)
+    self.source = source
+  end
+
+  defm get_source()
+    return self.source
+  end
+
+  defm append(chars)
+    if self.prefix == ''
+      self.prefix = chars[0]
+    end
+    self.chars = self.chars . chars
+  end
+
+  defm set_nesting(nesting)
+    self.nesting = nesting
+  end
+
+  defm get_nesting
+    return self.nesting
+  end
+
+  defm get_prefix
+    return self.start . self.prefix
+  end
+
+  defm get_chars
+    return self.chars
+  end
+
+end

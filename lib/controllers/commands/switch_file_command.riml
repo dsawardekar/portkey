@@ -1,0 +1,133 @@
+class SwitchFileCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+    self.variants = ['E', 'S', 'V', 'T', 'D']
+  end
+
+  " defaults for switch file commands
+  " must have projection by default
+  defm has_ex_mode
+    return self.buffer_has_context() && self.buffer_has_projection()
+  end
+
+  defm has_ctrlp_mode
+    return self.buffer_has_context() && self.buffer_has_projection()
+  end
+
+  defm get_ctrlp_aliases
+    return [self.get_name()]
+  end
+
+  defm get_nargs
+    return '?'
+  end
+
+  defm get_bang
+    return true
+  end
+
+  defm get_completer
+    return 'customlist'
+  end
+
+  defm complete(word, cmd_line, cursor)
+    opts = {}
+    opts.word = word
+    opts.match = cmd_line
+    opts.cursor = cursor
+
+    options = self.lookup('command_options')
+    options.set_args([opts])
+
+    unless self.can_complete(options)
+      return []
+    end
+
+    finder_context_class = self.get_finder_context()
+    finder_context = self.lookup(finder_context_class)
+
+    completer = self.lookup('completer')
+    results = completer.complete(finder_context, options)
+
+    return results
+  end
+
+  " default implementation of run
+  " defers the actual launching of the file to the launch method
+  defm run(*args)
+    options = self.lookup('command_options')
+    options.set_args(args)
+
+    unless self.can_run(options)
+      msg = self.get_error_msg({'is_launchable': false}, options)
+      if msg != ''
+        echo_error(msg)
+      end
+
+      if len(args) == 2
+        return args[0]
+      else
+        return false
+      end
+    end
+
+    finder_context_class = self.get_finder_context()
+    finder_context = self.lookup(finder_context_class)
+
+    strategies = self.get_launcher_strategies()
+    return self.launch(strategies, finder_context, options)
+  end
+
+  defm launch(strategies, finder_context, options)
+    launcher = self.lookup('launcher')
+    launchable = launcher.launch(strategies, finder_context, options)
+
+    msg = self.get_error_msg(launchable, options)
+    if msg != ''
+      echo_error(msg)
+    end
+
+    return launchable
+  end
+
+  " hooks:
+  " MUST be overridden by subclasses
+  defm get_finder_context
+    return ''
+  end
+
+  defm get_launcher_strategies
+    return []
+  end
+
+  defm get_error_label(options)
+    return self.get_name()
+  end
+
+  defm get_error_msg(launchable, options)
+    if launchable.is_launchable && launchable.get_launched()
+      return
+    end
+
+    inflector = self.lookup('inflector')
+    msg = inflector.titleize(self.get_error_label(options))
+
+    if launchable.is_launchable
+      filepath = launchable.get_filepath()
+
+      msg .= " not found: #{filepath}"
+    else
+      msg .= " not found for: #{self.get_current_buffer().get_rel_path()}"
+    end
+
+    return msg
+  end
+
+  defm can_complete(options)
+    return self.buffer_has_projection()
+  end
+
+  defm can_run(options)
+    return self.buffer_has_projection()
+  end
+end

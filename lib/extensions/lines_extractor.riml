@@ -1,0 +1,27 @@
+" Deletes the source lines and puts those lines into
+" into the destination buffer
+class LinesExtractor
+  def initialize
+    self.is_lines_extractor = true
+    self.is_extractor = true
+  end
+
+  " This extractor will always match and will be the
+  " last extractor run if no other extractor was found
+  defm match(context)
+    return true
+  end
+
+  defm change_source(start_line, end_line, opts)
+    cmd = ":#{start_line},#{end_line}d"
+    execute(cmd)
+  end
+
+  defm change_destination(lines, opts)
+    if opts.get_append_mode()
+      append(line('$'), lines)
+    else
+      setline(1, lines)
+    end
+  end
+end

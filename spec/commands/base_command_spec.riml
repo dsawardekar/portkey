@@ -1,0 +1,47 @@
+riml_include 'dsl.riml'
+riml_include 'base_command.riml'
+
+class BaseCommandSpec
+  defm describe
+    return 'BaseCommandSpec'
+  end
+
+  defm before_each
+    self.cmd = new BaseCommand()
+  end
+
+  defm after_each
+    :unlet self.cmd
+  end
+
+  defm it_can_have_a_name
+    name = self.cmd.get_name()
+    expect(name).to_equal('BaseCommand')
+  end
+
+  defm it_has_no_aliases_by_default
+    expect(self.cmd.get_aliases()).to_have_length(0)
+  end
+
+  defm it_has_only_one_name_by_default
+    expect(self.cmd.get_names()).to_equal(['BaseCommand'])
+  end
+
+  defm it_has_default_options
+    opts = self.cmd.get_options()
+    expect(opts).to_have_key('bang')
+    expect(opts).to_have_key('bar')
+    expect(opts).to_have_key('nargs')
+    expect(opts).to_have_key('buffer')
+    expect(opts).to_have_key('register')
+    expect(opts).to_have_key('complete')
+  end
+
+  defm it_can_complete_words
+    expect(self.cmd.complete('foo', '', 0)).to_have_length(0)
+  end
+
+  defm it_can_be_run
+    expect(self.cmd.run(['a', 'b', 'c'], {})).to_be_false()
+  end
+end

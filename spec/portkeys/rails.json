@@ -1,0 +1,7 @@
+{
+  "app/models/*.rb": {
+    "command": "model",
+    "alternate": "spec/models/%s_spec.rb",
+    "template": "class %S extends ActiveRecord::Base\nend"
+  }
+}

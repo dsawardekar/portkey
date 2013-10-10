@@ -1,0 +1,799 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'object_cache.riml'
+riml_include 'memoizer.riml'
+riml_include 'inflector.riml'
+riml_include 'inflections.riml'
+
+class InflectionExecuterSpec
+  defm describe
+    return 'InflectionExecuterSpec'
+  end
+
+  defm inflect(source, from, to)
+    rule = new InflectionRule(from, to)
+    executer = new InflectionExecuter()
+
+    return executer.inflect(source, [rule])
+  end
+
+  defm it_does_not_apply_rule_if_no_rule_is_matched
+    result = self.inflect('lorem', 'foo', 'bar')
+    expect(result).to_equal('lorem')
+  end
+
+  defm it_can_apply_simple_rules
+    result = self.inflect('foo', 'foo', 'bar')
+    expect(result).to_equal('bar')
+  end
+
+  defm it_can_apply_simple_substitution
+    result = self.inflect('man', '\v(m)an$', '\1en')
+    expect(result).to_equal('men')
+  end
+
+  defm it_can_apply_complex_substitution
+    result = self.inflect('quality','\v([^aeiouy]|qu)y$', '\1ies')
+    expect(result).to_equal('qualities')
+  end
+
+  defm it_can_match_correctly_given_multiple_rules
+    executer = new InflectionExecuter()
+    rules = []
+
+    rule = new InflectionRule('\v([^aeiouy]|qu)y$', '\1ies')
+    add(rules, rule)
+
+    rule = new InflectionRule('\v(m)an$', '\1en')
+    add(rules, rule)
+
+    rule = new InflectionRule('foo', 'bar')
+    add(rules, rule)
+
+    result = executer.inflect('foo', rules)
+    expect(result).to_equal('bar')
+
+    result = executer.inflect('man', rules)
+    expect(result).to_equal('men')
+
+    result = executer.inflect('quality', rules)
+    expect(result).to_equal('qualities')
+
+    result = executer.inflect('lorem', rules)
+    expect(result).to_equal('lorem')
+  end
+end
+
+class BasicBaseInflectorSpec
+  defm describe
+    return 'BasicBaseInflectorSpec'
+  end
+
+  defm it_can_store_rules
+    inflector = new BaseInflector()
+    inflector.add_rule(inflector.plural_rules, 'foo', 'bar', 'flags')
+
+    expect(inflector.plural_rules).to_have_length(1)
+    expect(inflector.plural_rules[0].from).to_equal('\vfoo')
+    expect(inflector.plural_rules[0].to).to_equal('bar')
+    expect(inflector.plural_rules[0].flags).to_equal('flags')
+  end
+
+  defm it_can_add_default_flags
+    inflector = new BaseInflector()
+    inflector.add_rule(inflector.plural_rules, 'foo', 'bar')
+
+    expect(inflector.plural_rules[0].flags).to_equal('gi')
+  end
+
+  defm it_can_store_plural_rules
+    inflector = new BaseInflector()
+    inflector.add_plural_rule('foo', 'bar', 'flags')
+
+    expect(inflector.plural_rules).to_have_length(1)
+    expect(inflector.plural_rules[0].from).to_equal('\vfoo')
+    expect(inflector.plural_rules[0].to).to_equal('bar')
+    expect(inflector.plural_rules[0].flags).to_equal('flags')
+  end
+
+  defm it_can_store_singular_rules
+    inflector = new BaseInflector()
+    inflector.add_singular_rule('foo', 'bar', 'flags')
+
+    expect(inflector.singular_rules).to_have_length(1)
+    expect(inflector.singular_rules[0].from).to_equal('\vfoo')
+    expect(inflector.singular_rules[0].to).to_equal('bar')
+    expect(inflector.singular_rules[0].flags).to_equal('flags')
+  end
+
+  defm it_can_store_uncountables()
+    inflector = new BaseInflector()
+    inflector.add_uncountable('lorem')
+
+    expect(inflector.is_uncountable('lorem')).to_be_true()
+    expect(inflector.is_uncountable('ipsum')).to_be_false()
+  end
+
+  defm it_can_store_multiple_plural_rules()
+    inflector = new BaseInflector()
+    rules = []
+    add(rules, ['foo', 'bar'])
+    add(rules, ['lorem', 'lorems', 'flags'])
+    result = call(inflector['add_plural_rules'], [rules], inflector)
+
+    expect(inflector.plural_rules).to_have_length(2)
+    expect(inflector.plural_rules[1].from).to_equal('\vfoo')
+    expect(inflector.plural_rules[0].flags).to_equal('flags')
+  end
+
+  defm it_can_store_multiple_singular_rules()
+    inflector = new BaseInflector()
+    rules = []
+    add(rules, ['foo', 'bar'])
+    add(rules, ['lorem', 'lorems', 'flags'])
+    result = call(inflector['add_singular_rules'], [rules], inflector)
+
+    expect(inflector.singular_rules).to_have_length(2)
+    expect(inflector.singular_rules[1].from).to_equal('\vfoo')
+    expect(inflector.singular_rules[0].flags).to_equal('flags')
+  end
+
+  defm it_can_store_multiple_uncountables
+    inflector = new BaseInflector()
+    inflector.add_uncountables(['lorem', 'ipsum', 'dolor'])
+
+    expect(inflector.is_uncountable('lorem')).to_be_true()
+    expect(inflector.is_uncountable('ipsum')).to_be_true()
+    expect(inflector.is_uncountable('dolor')).to_be_true()
+  end
+
+end
+
+class BaseInflectorPluralizeSpec
+  defm describe
+    return 'BaseInflectorPluralizeSpec'
+  end
+
+  defm it_can_pluralize_words
+    inflector = new BaseInflector()
+    inflector.add_plural_rule('([^aeiouy]|qu)y$', '\1ies')
+    inflector.add_plural_rule('\v(m)an$', '\1en')
+    inflector.add_plural_rule('foo', 'bar')
+
+    expect(inflector.pluralize('man')).to_equal('men')
+    expect(inflector.pluralize('quality')).to_equal('qualities')
+    expect(inflector.pluralize('foo')).to_equal('bar')
+  end
+
+end
+
+class BaseInflectorSingularizeSpec
+  defm describe
+    return 'BaseInflectorSingularizeSpec'
+  end
+
+  defm it_can_singularize_words
+    inflector = new BaseInflector()
+
+    inflector.add_singular_rule('(m)en$', '\1an')
+    inflector.add_singular_rule('(pe)ople$', '\1rson')
+    inflector.add_singular_rule('(child)ren$', '\1')
+
+    expect(inflector.singularize('men')).to_equal('man')
+    expect(inflector.singularize('people')).to_equal('person')
+    expect(inflector.singularize('children')).to_equal('child')
+  end
+
+  defm it_can_singularize_common_words
+    inf = new BaseInflector()
+    inf.add_irregulars(get_default_irregular_rules())
+    inf.set_mode('prepend')
+    inf.add_irregular('salesperson', 'salespeople')
+    inf.set_mode('append')
+
+    inf.add_singular_rules(get_default_singular_rules())
+    inf.add_plural_rules(get_default_plural_rules())
+
+    expect(inf.singularize('comments')).to_equal('comment')
+    expect(inf.singularize('analyses')).to_equal('analysis')
+    expect(inf.singularize('bases')).to_equal('basis')
+    expect(inf.singularize('movies')).to_equal('movie')
+    expect(inf.singularize('newsletters')).to_equal('newsletter')
+    expect(inf.singularize('safes')).to_equal('safe')
+    expect(inf.pluralize('safe')).to_equal('safes')
+    expect(inf.pluralize('comment')).to_equal('comments')
+    expect(inf.singularize('comments')).to_equal('comment')
+    expect(inf.pluralize('comment')).to_equal('comments')
+    expect(inf.singularize('men')).to_equal('man')
+    expect(inf.singularize('salespeople')).to_equal('salesperson')
+    expect(inf.singularize('women')).to_equal('woman')
+    expect(inf.pluralize('man')).to_equal('men')
+    expect(inf.pluralize('woman')).to_equal('women')
+  end
+
+end
+
+class BaseInflectorAffinizeSpec
+  defm describe
+    return 'BaseInflectorAffinizeSpec'
+  end
+
+  defm before
+    inflector = new BaseInflector()
+    inflector.add_singular_rule('(m)en$', '\1an')
+    inflector.add_singular_rule('(pe)ople$', '\1rson')
+    inflector.add_singular_rule('(child)ren$', '\1')
+
+    inflector.add_plural_rule('([^aeiouy]|qu)y$', '\1ies')
+    inflector.add_plural_rule('\v(m)an$', '\1en')
+    inflector.add_plural_rule('foo', 'bar')
+
+    self.inf = inflector
+  end
+
+  defm it_wont_singular_words_without_affinity
+    expect(self.inf.affinize('man', '')).to_equal('man')
+    expect(self.inf.affinize('man', 'null')).to_equal('man')
+  end
+
+  defm it_will_singularize_words_with_singular_affinity
+    expect(self.inf.affinize('men', 'model')).to_equal('man')
+    expect(self.inf.affinize('men', 'resource')).to_equal('man')
+    expect(self.inf.affinize('men', 'singular')).to_equal('man')
+  end
+
+  defm it_will_pluralize_words_with_plural_affinity
+    expect(self.inf.affinize('woman', 'plural')).to_equal('women')
+    expect(self.inf.affinize('woman', 'collection')).to_equal('women')
+    expect(self.inf.affinize('woman', 'controller')).to_equal('women')
+  end
+
+  defm it_will_use_affinity_as_word_for_unknown_affinity
+    expect(self.inf.affinize('lorem', 'custom')).to_equal('custom')
+  end
+
+end
+
+class BaseInflectorUncountableSpec
+  defm describe
+    return 'BaseInflectorUncountableSpec'
+  end
+
+  defm it_ignores_uncountable_words
+    inflector = new BaseInflector()
+
+    inflector.add_singular_rule('(m)en$', '\1an')
+    inflector.add_singular_rule('(pe)ople$', '\1rson')
+    inflector.add_singular_rule('(child)ren$', '\1')
+
+    inflector.add_plural_rule('([^aeiouy]|qu)y$', '\1ies')
+    inflector.add_plural_rule('\v(m)an$', '\1en')
+    inflector.add_plural_rule('foo', 'bar')
+
+    inflector.add_uncountables(['sheep', 'deer', 'rice'])
+
+    expect(inflector.pluralize('sheep')).to_equal('sheep')
+    expect(inflector.pluralize('deer')).to_equal('deer')
+    expect(inflector.pluralize('rice')).to_equal('rice')
+
+    expect(inflector.singularize('sheep')).to_equal('sheep')
+    expect(inflector.singularize('deer')).to_equal('deer')
+    expect(inflector.singularize('rice')).to_equal('rice')
+  end
+end
+
+class BaseInflectorIrregularSpec
+  defm describe
+    return 'BaseInflectorIrregularSpec'
+  end
+
+  defm it_can_understand_irregular_words
+    inflector = new BaseInflector()
+    inflector.add_irregular('alumna', 'alumnae')
+
+    expect(inflector.pluralize('alumna')).to_equal('alumnae')
+    expect(inflector.singularize('alumnae')).to_equal('alumna')
+  end
+
+  defm it_can_understand_multiple_irregular_words
+    inflector = new BaseInflector()
+    rules = []
+    add(rules, ['alumna', 'alumnae'])
+    add(rules, ['addendum', 'addenda'])
+    inflector.add_irregulars(rules)
+
+    expect(inflector.pluralize('alumna')).to_equal('alumnae')
+    expect(inflector.singularize('alumnae')).to_equal('alumna')
+
+    expect(inflector.pluralize('addendum')).to_equal('addenda')
+    expect(inflector.singularize('addenda')).to_equal('addendum')
+  end
+
+  defm it_can_be_taught_new_irregular_words
+    inf = new BaseInflector()
+    inf.add_irregulars(get_default_irregular_rules())
+    inf.add_plural_rules(get_default_plural_rules())
+    inf.add_singular_rules(get_default_singular_rules())
+
+    " incorrect without custom irregular
+    expect(inf.singularize('tableaux')).to_not_equal('tableau')
+
+    " now knows tableau
+    inf.add_irregular('tableau', 'tableaux')
+    expect(inf.singularize('tableaux')).to_equal('tableau')
+    expect(inf.pluralize('tableau')).to_equal('tableaux')
+  end
+end
+
+class BaseInflectorCapitalizeSpec
+  defm describe
+    return 'BaseInflectorCapitalizeSpec'
+  end
+
+  defm capitalize(str)
+    inflector = new BaseInflector()
+    return inflector.capitalize(str)
+  end
+
+  defm it_can_capitalize_words()
+    expect(self.capitalize('lorem')).to_equal('Lorem')
+    expect(self.capitalize('lorem_ipsum')).to_equal('Lorem_ipsum')
+    expect(self.capitalize('Lorem')).to_equal('Lorem')
+    expect(self.capitalize('_foo')).to_equal('_foo')
+    expect(self.capitalize('someObject')).to_equal('Someobject')
+  end
+
+end
+
+class BaseInflectorCamelizeSpec
+  defm describe
+    return 'BaseInflectorCamelizeSpec'
+  end
+
+  defm before_each
+    self.inflector = new BaseInflector()
+  end
+
+  defm after_each
+    :unlet self.inflector
+  end
+
+  " TODO: -k switch doesn't appear to support \= expr
+  defm nocp_mode
+    return exists('g:speckle_nocp_mode') && g:speckle_nocp_mode
+  end
+
+  defm it_can_camelize_to_classnames
+    expect(self.inflector.camelize('lorem_ipsum')).to_equal('LoremIpsum')
+  end
+
+  defm it_can_camelize_paths
+    expect(self.inflector.camelize('path/to/folder')).to_equal('PathToFolder')
+  end
+
+  defm it_does_basic_camelization_without_acronyms
+    expect(self.inflector.camelize('some_http_object')).to_equal('SomeHttpObject')
+  end
+
+  defm it_can_replace_acronyms
+    inflector = new BaseInflector()
+    inflector.add_acronym('HTTP')
+
+    expect(inflector.replace_acronyms('http')).to_equal('HTTP')
+  end
+
+  defm it_preserves_acronyms
+    if self.nocp_mode()
+      return
+    end
+
+    inflector = new BaseInflector()
+    inflector.add_acronyms(['HTTP', 'FTP'])
+    expect(inflector.camelize('some_http_object')).to_equal('SomeHTTPObject')
+    expect(inflector.camelize('http_server_and_ftp_server')).to_equal('HTTPServerAndFTPServer')
+  end
+
+  defm it_preserves_case_in_acronyms
+    if self.nocp_mode()
+      return
+    end
+
+    inflector = new BaseInflector()
+    inflector.add_acronyms(['McDonald'])
+
+    expect(inflector.camelize('some_mcdonald_object')).to_equal('SomeMcDonaldObject')
+  end
+
+  defm it_does_not_capitalize_with_lower_camelize
+    expect(self.inflector.lower_camelize('some_object')).to_equal('someObject')
+  end
+
+  defm it_can_lower_camelize
+    expect(self.inflector.lower_camelize('lorem_ipsum_dolor')).to_equal('loremIpsumDolor')
+    expect(self.inflector.lower_camelize('Path/To/Folder')).to_equal('pathToFolder')
+  end
+
+  defm it_preserves_acronyms_in_lower_camelize
+    if self.nocp_mode()
+      return
+    end
+
+    inflector = new BaseInflector()
+    inflector.add_acronyms(['HTTP', 'FTP'])
+    expect(inflector.lower_camelize('some_http_object')).to_equal('someHTTPObject')
+    expect(inflector.lower_camelize('some_http_server_and_ftp_server')).to_equal('someHTTPServerAndFTPServer')
+  end
+
+  defm it_does_not_replace_acronyms_at_start_in_lower_camelize
+    inflector = new BaseInflector()
+    inflector.add_acronyms(['HTTP', 'FTP'])
+
+    expect(inflector.lower_camelize('http_object')).to_equal('httpObject')
+  end
+
+end
+
+class BaseInflectorUnderscorizeSpec
+  defm describe
+    return 'BaseInflectorUnderscorizeSpec'
+  end
+
+  defm underscorize(str)
+    inflector = new BaseInflector()
+    return inflector.underscorize(str)
+  end
+
+  defm it_can_underscorize_from_camelcase
+    expect(self.underscorize('loremIpsum')).to_equal('lorem_ipsum')
+  end
+
+  defm it_can_underscorize_from_class
+    expect(self.underscorize('ActiveModel::Errors')).to_equal('active_model_errors')
+  end
+
+  defm it_can_underscorize_from_path
+    expect(self.underscorize('path/to/folder')).to_equal('path_to_folder')
+  end
+end
+
+class BaseInflectorDasherizeSpec
+  defm describe
+    return 'BaseInflectorDasherizeSpec'
+  end
+
+  defm dasherize(str)
+    inflector = new BaseInflector()
+    return inflector.dasherize(str)
+  end
+
+  defm it_can_dasherize_from_camelcase
+    expect(self.dasherize('loremIpsum')).to_equal('lorem-ipsum')
+  end
+
+  defm it_can_dasherize_from_class
+    expect(self.dasherize('ActiveModel::Errors')).to_equal('active-model-errors')
+  end
+
+  defm it_can_dasherize_from_path
+    expect(self.dasherize('path/to/folder')).to_equal('path-to-folder')
+  end
+end
+
+class BaseInflectorHumanizeSpec
+  defm describe
+    return 'BaseInflectorHumanizeSpec'
+  end
+
+  defm humanize(str)
+    inflector = new BaseInflector()
+    return inflector.humanize(str)
+  end
+
+  defm it_can_humanize_path
+    expect(self.humanize('path/to/folder')).to_equal('path to folder')
+  end
+
+  defm it_can_humanize_from_underscore
+    inflector = new BaseInflector()
+    inflector.add_acronyms(['HTTP'])
+    expect(inflector.humanize('some_http_object')).to_equal('some HTTP object')
+  end
+
+  defm it_can_humanize_ids
+    expect(self.humanize('person_id')).to_equal('person')
+  end
+end
+
+class BaseInflectorTitleizeSpec
+  defm describe
+    return 'BaseInflectorTitleizeSpec'
+  end
+
+  defm titleize(str)
+    inflector = new BaseInflector()
+    return inflector.titleize(str)
+  end
+
+  defm it_can_titleize_path
+    expect(self.titleize('path/to/folder')).to_equal('Path To Folder')
+  end
+
+  defm it_can_titleize_from_underscore
+    inflector = new BaseInflector()
+    inflector.add_acronyms(['HTTP'])
+    expect(inflector.titleize('SomeHttpObject')).to_equal('Some HTTP Object')
+  end
+
+  defm it_can_titleize_ids
+    expect(self.titleize('person_id')).to_equal('Person')
+  end
+end
+
+class BaseInflectorTableizeSpec
+
+  defm describe
+    return 'BaseInflectorTableizeSpec'
+  end
+
+  defm tableize(word)
+    inflector = new BaseInflector()
+    inflector.add_plural_rule('$', 's')
+    inflector.add_plural_rule('([^aeiouy]|qu)y$', '\1ies')
+
+    return inflector.tableize(word)
+  end
+
+  defm it_can_tabelize_words
+    expect(self.tableize('egg_and_ham')).to_equal('egg_and_hams')
+  end
+
+  defm it_can_tableize_complex_words
+    expect(self.tableize('fancyCategory')).to_equal('fancy_categories')
+  end
+
+end
+
+class BaseInflectorClassifySpec
+
+  defm describe
+    return 'BaseInflectorClassifySpec'
+  end
+
+  defm classify(word)
+    inflector = new BaseInflector()
+    inflector.add_singular_rule('([^aeiouy]|qu)ies$', '\1y')
+
+    return inflector.classify(word)
+  end
+
+  defm it_can_classify_words
+    expect(self.classify('egg_and_ham')).to_equal('EggAndHam')
+  end
+
+  defm it_can_classify_complex_words
+    expect(self.classify('fancy_categories')).to_equal('FancyCategory')
+  end
+
+end
+
+class DefaultInflectionsSpec
+  defm describe
+    return 'DefaultInflectionsSpec'
+  end
+
+  defm before
+    self.inflector = new Inflector()
+    self.inflector.on_inject()
+
+    self.table = {
+    \ 'ability': 'abilities',
+    \ 'address': 'addresses',
+    \ 'agency': 'agencies',
+    \ 'alias': 'aliases',
+    \ 'analysis': 'analyses',
+    \ 'archive': 'archives',
+    \ 'axis': 'axes',
+    \ 'bacterium': 'bacteria',
+    \ 'basis': 'bases',
+    \ 'box': 'boxes',
+    \ 'buffalo': 'buffaloes',
+    \ 'bus': 'buses',
+    \ 'case': 'cases',
+    \ 'category': 'categories',
+    \ 'child': 'children',
+    \ 'comment': 'comments',
+    \ 'crisis': 'crises',
+    \ 'datum': 'data',
+    \ 'day': 'days',
+    \ 'deer': 'deer',
+    \ 'diagnosis': 'diagnoses',
+    \ 'dwarf': 'dwarves',
+    \ 'edge': 'edges',
+    \ 'elf': 'elves',
+    \ 'equipment': 'equipment',
+    \ 'experience': 'experiences',
+    \ 'fish': 'fishes',
+    \ 'fix': 'fixes',
+    \ 'foobar': 'foobars',
+    \ 'half': 'halves',
+    \ 'hive': 'hives',
+    \ 'horse': 'horses',
+    \ 'house': 'houses',
+    \ 'index': 'indices',
+    \ 'information': 'information',
+    \ 'knife': 'knives',
+    \ 'louse': 'lice',
+    \ 'man': 'men',
+    \ 'matrix': 'matrices',
+    \ 'medium': 'media',
+    \ 'money': 'money',
+    \ 'moose': 'moose',
+    \ 'mouse': 'mice',
+    \ 'move': 'moves',
+    \ 'movie': 'movies',
+    \ 'news': 'news',
+    \ 'newsletter': 'newsletters',
+    \ 'node_child': 'node_children',
+    \ 'octopus': 'octopi',
+    \ 'old_news': 'old_news',
+    \ 'ox': 'oxen',
+    \ 'parenthesis': 'parentheses',
+    \ 'person': 'people',
+    \ 'perspective': 'perspectives',
+    \ 'photo': 'photos',
+    \ 'portfolio': 'portfolios',
+    \ 'prize': 'prizes',
+    \ 'process': 'processes',
+    \ 'quality': 'qualities',
+    \ 'query': 'queries',
+    \ 'quiz': 'quizzes',
+    \ 'rice': 'rice',
+    \ 'safe': 'safes',
+    \ 'salesperson': 'salespeople',
+    \ 'search': 'searches',
+    \ 'series': 'series',
+    \ 'sheep': 'sheep',
+    \ 'shoe': 'shoes',
+    \ 'species': 'species',
+    \ 'spokesman': 'spokesmen',
+    \ 'stack': 'stacks',
+    \ 'status': 'statuses',
+    \ 'switch': 'switches',
+    \ 'testis': 'testes',
+    \ 'tomato': 'tomatoes',
+    \ 'vertex': 'vertices',
+    \ 'virus': 'viri',
+    \ 'wife': 'wives',
+    \ 'wish': 'wishes',
+    \ 'woman': 'women',
+    \}
+
+  end
+
+  defm after
+    :unlet self.inflector
+  end
+
+  defm it_can_pluralize_words
+    for [singular, plural] in items(self.table)
+      expect(self.inflector.pluralize(singular)).to_equal(plural)
+    end
+  end
+
+  defm it_can_singularize_words
+    for [singular, plural] in items(self.table)
+      expect(self.inflector.singularize(plural)).to_equal(singular)
+    end
+  end
+
+  defm it_can_be_memoized
+    memoizer = new Memoizer(self.inflector)
+    memoizer.memoizer_load('pluralize', 'singularize')
+    memoizer.memoizer_start()
+
+    for [singular, plural] in items(self.table)
+      expect(memoizer.pluralize(singular)).to_equal(plural)
+    end
+
+    for [singular, plural] in items(self.table)
+      expect(memoizer.singularize(plural)).to_equal(singular)
+    end
+
+    n = len(self.table)
+
+    for [singular, plural] in items(self.table)
+      expect(memoizer.pluralize(singular)).to_equal(plural)
+    end
+
+    for [singular, plural] in items(self.table)
+      expect(memoizer.singularize(plural)).to_equal(singular)
+    end
+
+    expect(memoizer.memoizer_get_misses()).to_equal(2 * n)
+    expect(memoizer.memoizer_get_hits()).to_equal(2 * n)
+  end
+end
+
+class InflectionLoaderSpec
+  defm verify_plural(inf, from, to)
+    expect(inf.pluralize(from)).to_equal(to)
+  end
+
+  defm verify_singular(inf, from, to)
+    expect(inf.singularize(from)).to_equal(to)
+  end
+
+  defm it_can_load_mode
+    inf = new Inflector()
+    loader = new InflectionLoader()
+
+    json = { 'mode': 'prepend' }
+    loader.load(json, inf)
+
+    expect(inf.get_mode()).to_equal('prepend')
+
+    json = { 'mode': 'append' }
+    loader.load(json, inf)
+
+    expect(inf.get_mode()).to_equal('append')
+  end
+
+  defm it_can_load_acronyms_array
+    inf = new Inflector()
+    loader = new InflectionLoader()
+
+    json = { 'acronyms': ['HTTP', 'FTP'] }
+    loader.load(json, inf)
+
+    expect(inf.acronyms.http).to_equal('HTTP')
+    expect(inf.acronyms.ftp).to_equal('FTP')
+  end
+
+  defm it_can_load_uncountables
+    inf = new Inflector()
+    loader = new InflectionLoader()
+
+    json = { 'acronyms': ['oxygen', 'hydrogen'] }
+    loader.load(json, inf)
+
+    self.verify_plural(inf, 'oxygen', 'oxygen')
+    self.verify_singular(inf, 'oxygen', 'oxygen')
+  end
+
+  defm it_can_load_irregulars
+    inf = new Inflector()
+    loader = new InflectionLoader()
+
+    json = { 'irregulars': { 'dogma': 'dogmata' } }
+    loader.load(json, inf)
+
+    self.verify_plural(inf, 'dogma', 'dogmata')
+    self.verify_singular(inf, 'dogmata', 'dogma')
+  end
+
+  defm it_can_load_rules
+    inf = new Inflector()
+    loader = new InflectionLoader()
+
+    json = {}
+
+    json.plurals = {}
+    json.plurals['(dogma)$'] = '\1s'
+    json.plurals['(alga)$'] = '\1e'
+
+    json.singulars = {}
+    json.singulars['(dogma)s'] = '\1'
+    json.singulars['(alga)e$'] = '\1'
+
+    loader.load(json, inf)
+
+    self.verify_plural(inf, 'dogma', 'dogmas')
+    self.verify_singular(inf, 'dogmas', 'dogma')
+
+    self.verify_plural(inf, 'alga', 'algae')
+    self.verify_singular(inf, 'algae', 'alga')
+  end
+
+end
+

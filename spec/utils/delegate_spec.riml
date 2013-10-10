@@ -1,0 +1,49 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+
+class DelegateSpec
+  defm describe
+    return 'DelegateSpec'
+  end
+
+  defm do_delegate(...)
+    self.result = a:000
+  end
+
+  defm it_can_create_a_delegate_function
+    Foo = create_delegate(self, 'do_delegate')
+  end
+
+  defm it_can_remove_a_delegate_function
+    Foo = create_delegate(self, 'do_delegate')
+    remove_delegate(Foo)
+  end
+
+  defm it_can_store_delegate_in_a_dict
+    Foo = create_delegate(self, 'do_delegate')
+    store = {}
+    store.foo = Foo
+
+    expect(store).to_have_key('foo')
+  end
+
+  defm it_has_delegates_which_can_be_called_in_scope
+    Foo = create_delegate(self, 'do_delegate')
+    :call Foo('a', 'b', 'c')
+    expect(self.result).to_equal(['a', 'b', 'c'])
+  end
+
+  defm it_can_get_delegate_function_name_focus
+    Foo = create_delegate(self, 'do_delegate')
+    func_name = get_delegate_name(Foo)
+    expect(func_name).to_match('\v.*DelegateFunction\d+$')
+  end
+
+  defm it_can_create_named_delegate
+    my_delegate = new_delegate(self, 'do_delegate')
+    execute(":call #{my_delegate}(1, 2, 3)")
+
+    expect(self.result).to_equal([1, 2, 3])
+  end
+end

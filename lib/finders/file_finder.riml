@@ -1,0 +1,39 @@
+class FileFinder
+  defm find(context, collector)
+    pattern_list = context.lookup('pattern_list')
+    buffer = context.lookup('buffer')
+    root = buffer.get_abs_root()
+    src = context.lookup('source')
+
+    candidates = []
+
+    for pattern in pattern_list
+      self.add_candidate(collector, root, self.into_pattern(src, pattern))
+      self.add_candidate(collector, root, self.into_rootname(src, pattern))
+    end
+
+    return true
+  end
+
+  defm add_candidate(collector, root, path)
+    if filereadable(root . path)
+      collector.add(path)
+    end
+  end
+
+  " These 2 strategies coupled with the variants
+  " should be able to find the simpler stuff
+  " For more complex stuff, the framework context is
+  " needed, ie:- a framework file finder
+  " {source} => app/models/{*}.ext
+  defm into_pattern(source, pattern)
+    return pattern.swap(source)
+  end
+
+  " {source} => app/models/{*_foo_bar}.ext
+  defm into_rootname(source, pattern)
+    pattern_str = pattern.get_original()
+    rootname = fnamemodify(pattern_str, ':t:r')
+    return substitute(pattern_str, rootname, source, '')
+  end
+end

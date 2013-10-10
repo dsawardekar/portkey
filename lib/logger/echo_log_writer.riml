@@ -1,0 +1,10 @@
+class EchoLogWriter
+  defm get_colorize()
+    return false
+  end
+
+  defm log(message)
+    echo message
+  end
+end
+

@@ -1,0 +1,26 @@
+class OpenPortkeyCommand < PortkeyCommand
+  def initialize(controller)
+    super(controller)
+  end
+
+  defm get_name
+    return 'OpenPortkey'
+  end
+
+  defm get_aliases
+    return ['PK']
+  end
+
+  defm has_ex_mode
+    return true
+  end
+
+  defm run(opts)
+    portkey_path = self.get_current_buffer().get_portkey_path()
+    portkey_path = fnamemodify(portkey_path, ':.')
+
+    " TODO: make the window used configurable
+    file_opener = self.lookup('file_opener')
+    file_opener.open(portkey_path, 'e')
+  end
+end

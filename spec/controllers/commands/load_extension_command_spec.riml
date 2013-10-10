@@ -1,0 +1,31 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class MockExtension
+  defm get_name
+    return 'mock'
+  end
+
+  defm get_scope
+    return 'mock'
+  end
+end
+
+class LoadExtensionCommandSpec
+  defm describe
+    return 'LoadExtensionCommandSpec'
+  end
+
+  defm it_can_load_extensions
+    d = new AppDriver()
+    d.start()
+
+    extensions = d.lookup('extensions')
+    expect(extensions.has_extension('mock')).to_be_false()
+
+    d.do_action('LoadExtension', new MockExtension())
+    expect(extensions.has_extension('mock')).to_be_true()
+  end
+end

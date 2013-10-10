@@ -1,0 +1,739 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'json_parser.riml'
+riml_include 'delegate.riml'
+riml_include 'msg.riml'
+riml_include 'trie.riml'
+riml_include 'container.riml'
+riml_include 'projection_inc.riml'
+riml_include 'projection_collection.riml'
+riml_include 'inflections.riml'
+riml_include 'inflector.riml'
+riml_include 'context.riml'
+riml_include 'extension_collection.riml'
+
+class MockCollector
+  def initialize
+    self.items = []
+    self.paths = []
+    self.scopes = []
+    self.extension_names = []
+    self.configs = []
+    self.config_paths = []
+  end
+
+  defm add(json, path, scope)
+    add(self.items, json)
+    add(self.paths, path)
+    add(self.scopes, scope)
+  end
+
+  defm add_extension(name)
+    add(self.extension_names, name)
+  end
+end
+
+class MockExtension
+  def initialize(name)
+    self.name = name
+  end
+
+  defm get_name
+    return self.name
+  end
+
+  defm get_scope
+    return self.scope
+  end
+
+  defm get_portkey_path(type, variant)
+    return self.portkey_path
+  end
+end
+
+class MockContext
+  def initialize
+    self.portkeys = []
+    self.configs = []
+    self.config_paths = []
+  end
+
+  defm add_portkey(path)
+    add(self.portkeys, path)
+  end
+
+  defm load_config(json, path, scope)
+    add(self.configs, json)
+    add(self.config_paths, path)
+  end
+end
+
+class MockProjectionCollection
+  def initialize
+    self.projections = []
+  end
+
+  defm add(resource_type, json)
+    add(self.projections, [resource_type, json])
+  end
+end
+
+class PortkeyCollectorSpec
+  defm it_can_load_configuration
+    context = new MockContext()
+    projections = new MockProjectionCollection()
+    collector = new PortkeyCollector(context, projections)
+
+    json = {'config': { 'is_config_a': true }}
+    collector.add(json, 'portkey.json', 'global')
+
+    json = {'config': { 'is_config_b': true }}
+    collector.add(json, 'portkey.json', 'global')
+
+    expect(context.configs).to_equal([{'is_config_a': true}, {'is_config_b': true}])
+  end
+end
+
+class PortkeyPathSpec
+  defm describe
+    return 'PortkeyPathSpec'
+  end
+
+  defm it_can_store_pathname
+    p = new PortkeyPath('portkey.json')
+    expect(p.get_pathname()).to_equal('portkey.json')
+  end
+
+  defm it_can_detect_if_pathname_is_extension
+    p = new PortkeyPath('rails')
+    expect(p.is_extension()).to_be_true()
+    expect(p.get_extension_name()).to_equal('rails')
+  end
+
+  defm it_can_detect_if_pathname_is_file
+    p = new PortkeyPath('spec/portkeys/rails.json')
+    expect(p.is_extension()).to_be_false()
+    expect(p.get_filepath()).to_equal('spec/portkeys/rails.json')
+  end
+
+  defm verify_name_parts(pathname, expected_name, expected_type, expected_variant)
+    l = new PortkeyPath(pathname)
+    expect(l.get_extension_name()).to_equal(expected_name)
+    expect(l.get_extension_name_parts().type).to_equal(expected_type)
+    expect(l.get_extension_name_parts().variant).to_equal(expected_variant)
+  end
+
+  defm it_can_get_extension_parts_for_default_k
+    self.verify_name_parts('ember', 'ember', '', '')
+  end
+
+  defm it_can_get_extension_parts_for_classic_k
+    self.verify_name_parts('ember:classic', 'ember', 'classic', '')
+  end
+
+  defm it_can_get_extension_parts_for_classic_with_variant_k
+    self.verify_name_parts('ember:classic-js', 'ember', 'classic', 'js')
+  end
+
+  defm it_knows_if_name_is_extension_name
+    l = new PortkeyLoader({})
+    expect(l.is_extension_name('ember')).to_be_true()
+    expect(l.is_extension_name('ember:classic')).to_be_true()
+    expect(l.is_extension_name('ember:classic-js')).to_be_true()
+    expect(l.is_extension_name('spec/portkeys/rails.json')).to_be_false()
+  end
+
+end
+
+class PortkeyLoaderSpec
+  defm describe
+    return 'PortkeyLoaderSpec'
+  end
+
+  defm before_each
+    self.extensions = new ExtensionCollection()
+  end
+
+  defm it_can_be_created
+    l = new PortkeyLoader(self.extensions)
+    expect(l.is_portkey_loader).to_be_true()
+  end
+
+  defm it_can_detect_if_result_is_json
+    l = new PortkeyLoader(self.extensions)
+    expect(l.is_json({})).to_be_true()
+  end
+
+  defm it_can_detect_if_result_is_not_json
+    l = new PortkeyLoader(self.extensions)
+    expect(l.is_json(0)).to_be_false()
+  end
+
+  defm it_can_detect_if_json_does_not_have_children
+    l = new PortkeyLoader(self.extensions)
+    json = {}
+    expect(l.has_children(json)).to_be_false()
+  end
+
+  defm it_can_detect_if_json_has_children
+    l = new PortkeyLoader(self.extensions)
+    json = {}
+    json['portkeys'] = ['a', 'b']
+    expect(l.has_children(json)).to_be_true()
+  end
+
+  defm it_can_parse_valid_json_text
+    l = new PortkeyLoader(self.extensions)
+    text = "{'is_json':1}"
+    expect(l.parse(text, 'foo').is_json).to_be_true()
+  end
+
+  defm it_does_not_throw_error_if_json_is_invalid_f
+    l = new PortkeyLoader(self.extensions)
+    text = "{'foo'"
+
+    try
+      result = l.parse(text, 'foo.json')
+      caught_error = false
+    catch /.*/
+      caught_error = true
+    end
+
+    expect(caught_error).to_be_false()
+  end
+
+  defm it_does_not_throw_error_if_file_not_found
+    col = new ExtensionCollection()
+    l = new PortkeyLoader(col)
+    try
+      l.load('foo_bar', {})
+      caught_error = false
+    catch /.*/
+      caught_error = true
+    end
+
+    expect(caught_error).to_be_false()
+  end
+
+  defm it_can_load_and_parse_portkey
+    path = 'spec/projects/basic/portkey.json'
+    l = new PortkeyLoader(self.extensions)
+    json = l.load_and_parse(path)
+
+    expect(type(json)).to_equal(type({}))
+  end
+
+  defm it_can_load_json_from_portkey
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+    path = 'spec/projects/basic/portkey.json'
+
+    l.load(path, c)
+    p0 = c.paths[0]
+
+    expect(p0).to_equal(path)
+  end
+
+  defm it_can_load_json_children_from_portkey
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+    path = 'spec/portkeys/nested.json'
+
+    l.load(path, c)
+    expect(c.paths[0]).to_equal('spec/portkeys/nested.json')
+    expect(c.paths[1]).to_equal('spec/portkeys/rails.json')
+    expect(c.paths[2]).to_equal('spec/projects/basic/portkey.json')
+  end
+
+  defm it_will_ignore_invalid_nested_portkey
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+    path = 'spec/portkeys/nested_with_invalid.json'
+
+    l.load(path, c)
+    expect(c.paths[0]).to_equal('spec/portkeys/nested_with_invalid.json')
+    expect(c.paths[1]).to_equal('spec/projects/basic/portkey.json')
+  end
+
+  defm it_will_fire_core_autocmd
+    self.extensions = new ExtensionCollection()
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+
+    self.autocmd_fired = false
+    delegate = new_delegate(self, 'register_extension')
+    self.start_group()
+    self.autoreg(":autocmd User portkey_extension_core :call #{delegate}('core')")
+    self.end_group()
+
+    path = 'spec/projects/basic/portkey.json'
+    l.load(path, c)
+
+    expect(c.paths[0]).to_equal(path)
+    expect(c.scopes[0]).to_equal('global')
+    expect(self.autocmd_fired).to_be_true()
+
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+
+    self.autocmd_fired = false
+    l.load(path, c)
+
+    expect(self.autocmd_fired).to_be_false()
+    expect(c.extension_names).to_equal([])
+  end
+
+  defm it_will_load_extension_portkeys
+    self.extensions = new ExtensionCollection()
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+
+    self.register_extension('core')
+
+    delegate = new_delegate(self, 'register_extension')
+    self.start_group()
+    self.autoreg(":autocmd User portkey_extension_rails :call #{delegate}('rails')")
+    self.autoreg(":autocmd User portkey_extension_ember :call #{delegate}('ember')")
+    self.end_group()
+
+    path = 'spec/portkeys/portkey_with_extensions.json'
+    l.load(path, c)
+
+    expect(c.paths).to_have_length(3)
+    expect(c.paths[0]).to_equal('spec/portkeys/portkey_with_extensions.json')
+    expect(c.paths[1]).to_equal('spec/portkeys/rails.json')
+    expect(c.paths[2]).to_equal('spec/portkeys/ember.json')
+
+    expect(c.scopes[0]).to_equal('global')
+    expect(c.scopes[1]).to_equal('rails')
+    expect(c.scopes[2]).to_equal('ember')
+
+    expect(c.extension_names).to_equal(['rails', 'ember'])
+  end
+
+  defm it_will_not_load_extension_if_it_has_already_loaded
+    self.extensions = new ExtensionCollection()
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+
+    " previously loaded extension
+    self.register_extension('core')
+    self.register_extension('rails')
+    self.register_extension('ember')
+
+    self.autocmd_fired = false
+    delegate = new_delegate(self, 'register_extension')
+    self.start_group()
+    self.autoreg(":autocmd User portkey_extension_rails :call #{delegate}('rails')")
+    self.autoreg(":autocmd User portkey_extension_ember :call #{delegate}('ember')")
+    self.end_group()
+
+    path = 'spec/portkeys/portkey_with_extensions.json'
+    l.load(path, c)
+
+    expect(self.autocmd_fired).to_be_false()
+
+    expect(c.paths[0]).to_equal('spec/portkeys/portkey_with_extensions.json')
+    expect(c.paths[1]).to_equal('spec/portkeys/rails.json')
+    expect(c.paths[2]).to_equal('spec/portkeys/ember.json')
+
+    expect(c.scopes[0]).to_equal('global')
+    expect(c.scopes[1]).to_equal('rails')
+    expect(c.scopes[2]).to_equal('ember')
+
+    expect(c.extension_names).to_equal(['rails', 'ember'])
+  end
+
+  defm it_will_gracefully_handle_missing_extensions
+    self.extensions = new ExtensionCollection()
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+
+    " lorem and ipsum extensions are missing
+    self.start_group()
+    self.end_group()
+
+    path = 'spec/portkeys/portkey_with_extensions.json'
+    l.load(path, c)
+
+    expect(c.paths).to_have_length(1)
+    expect(c.paths[0]).to_equal('spec/portkeys/portkey_with_extensions.json')
+    expect(c.scopes[0]).to_equal('global')
+
+    expect(c.extension_names).to_equal([])
+  end
+
+  defm register_extension(name)
+    self.autocmd_fired = true
+    mock_ext = new MockExtension(name)
+    mock_ext.portkey_path = "spec/portkeys/#{name}.json"
+    mock_ext.scope = name
+    self.extensions.add_extension(mock_ext)
+  end
+
+  defm start_group
+    :augroup portkey_extension_test_group
+    :autocmd!
+  end
+
+  defm end_group
+    :augroup END
+  end
+
+  defm autoreg(cmd)
+    execute(cmd)
+  end
+
+end
+
+class LoadContextSpec
+  defm describe
+    return 'Load portkey.json'
+  end
+
+  defm it_can_load_portkey_file
+    container = new Container({})
+    container.register('context', 'Context')
+    container.register('extensions', 'ExtensionCollection')
+    context = container.lookup('context')
+
+    result = context.load("spec/projects/basic/")
+    expect(result).to_be_true()
+  end
+
+  defm it_stores_loaded_portkeys
+    container = new Container({})
+    container.register('context', 'Context')
+    container.register('extensions', 'ExtensionCollection')
+    context = container.lookup('context')
+
+    result = context.load('spec/projects/basic/')
+    expect(result).to_be_true()
+
+    portkeys = context.get_portkeys()
+    expect(portkeys).to_equal(['spec/projects/basic/portkey.json'])
+  end
+end
+
+class UsingContextObjectSpec
+  defm describe
+    return 'Using Context objects'
+  end
+
+  defm it_can_provide_projections_given_root
+    container = new Container({})
+    container.register('context', 'Context')
+    container.register('extensions', 'ExtensionCollection')
+    context = container.lookup('context')
+    context.extensions = new ExtensionCollection()
+    context.projections = new ProjectionCollection()
+    context.load('spec/projects/basic/')
+
+    projections = context.get_projections()
+    portkeys = ["spec/projects/basic/portkey.json"]
+
+    expect(context.get_portkeys()).to_equal(portkeys)
+    expect(len(projections)).to_be_gte(1)
+  end
+
+end
+
+class ContextWithContainerSpec
+  defm describe
+    return 'ContextWithContainerSpec'
+  end
+
+  defm it_can_load_context_within_container
+    c = new Container({})
+    c.register('extensions', 'ExtensionCollection', true)
+    c.register('projections', 'ProjectionCollection')
+    c.register('context', 'Context')
+
+    context = c.lookup('context')
+    context.load('spec/projects/rails/')
+
+    projections = context.get_projections()
+    portkeys = ["spec/projects/rails/portkey.json"]
+
+    expect(context.get_portkeys()).to_equal(portkeys)
+    expect(len(projections)).to_be_gte(1)
+  end
+
+end
+
+class MockFinderExtension
+  defm get_finder(type)
+    return { 'is_finder': true, 'type': type }
+  end
+end
+
+class MockFinder
+  def initialize
+    self.finders = []
+  end
+
+  defm add_finder(type, finder)
+    add(self.finders, { 'type': type, 'finder': finder })
+  end
+end
+
+class MockContainer
+  defm lookup(name)
+    return self[name]
+  end
+end
+
+class ContextWithFinderExtensionsSpec
+  defm describe
+    return 'ContextWithFinderExtensionsSpec'
+  end
+
+  defm verify_finder(index, finder, type)
+    added = finder.finders
+    added_finder = added[index]
+
+    expect(added_finder.type).to_equal(type)
+    expect(added_finder.finder.is_finder).to_equal(true)
+    expect(added_finder.finder.type).to_equal(type)
+  end
+
+  defm it_can_load_finder
+    context = new Context()
+    extension = new MockFinderExtension()
+    finder = new MockFinder()
+
+    context.load_finder(extension, 'projection', finder)
+    self.verify_finder(0, finder, 'projection')
+  end
+
+  defm it_can_load_all_finders
+    finder = new MockFinder()
+    extension = new MockFinderExtension()
+
+    container = new MockContainer()
+    container.finder = finder
+
+    context = new Context()
+    context.container = container
+
+    context.load_finders(extension)
+
+    self.verify_finder(0, finder, 'projection')
+    self.verify_finder(1, finder, 'resource')
+    self.verify_finder(2, finder, 'file')
+  end
+end
+
+class MockRankerExtension
+  defm get_ranker(type)
+    return { 'is_ranker': true, 'type': type }
+  end
+end
+
+class MockRanker
+  def initialize
+    self.rankers = []
+  end
+
+  defm add_ranker(type, ranker)
+    add(self.rankers, { 'type': type, 'ranker': ranker })
+  end
+end
+
+class ContextWithRankerExtensionsSpec
+  defm describe
+    return 'ContextWithRankerExtensionsSpec'
+  end
+
+  defm verify_ranker(index, ranker, type)
+    added = ranker.rankers
+    added_ranker = added[index]
+
+    expect(added_ranker.type).to_equal(type)
+    expect(added_ranker.ranker.is_ranker).to_equal(true)
+    expect(added_ranker.ranker.type).to_equal(type)
+  end
+
+  defm it_can_load_ranker
+    context = new Context()
+    extension = new MockRankerExtension()
+    ranker = new MockRanker()
+
+    context.load_ranker(extension, 'projection', ranker)
+    self.verify_ranker(0, ranker, 'projection')
+  end
+
+  defm it_can_load_all_rankers
+    ranker = new MockRanker()
+    extension = new MockRankerExtension()
+
+    container = new MockContainer()
+    container.ranker = ranker
+
+    context = new Context()
+    context.container = container
+
+    context.load_rankers(extension)
+
+    self.verify_ranker(0, ranker, 'projection')
+    self.verify_ranker(1, ranker, 'resource')
+    self.verify_ranker(2, ranker, 'file')
+  end
+end
+
+class MockInflectorExtension
+  defm configure_inflector(inflector)
+    self.inflector = inflector
+  end
+end
+
+class ContextWithInflectorExtensionSpec
+  defm describe
+    return 'ContextWithInflectorExtensionSpec'
+  end
+
+  defm it_can_load_inflections
+    container = new MockContainer()
+    container.inflector = { 'is_inflector': true }
+
+    context = new Context()
+    context.container = container
+
+    extension = new MockInflectorExtension()
+    context.load_inflections(extension)
+
+    expect(extension.inflector.is_inflector).to_be_true()
+  end
+end
+
+class MockFilterExtension
+  defm get_filters()
+    return self.filters
+  end
+end
+
+class MockFilterFactory
+  def initialize
+    self.filters = {}
+  end
+
+  defm add_filter(filter_name, filter)
+    self.filters[filter_name] = filter
+  end
+end
+
+class ContextWithFiltersExtensionSpec
+  defm describe
+    return 'ContextWithFiltersExtensionSpec'
+  end
+
+  defm it_can_load_filters()
+    container = new MockContainer()
+    container.filter_factory = new MockFilterFactory()
+
+    filters = {}
+    filters.a = { 'is_filter': true, 'name': 'a' }
+    filters.b = { 'is_filter': true, 'name': 'b' }
+
+    extension = new MockFilterExtension()
+    extension.filters = filters
+
+    context = new Context()
+    context.container = container
+    context.load_filters(extension)
+
+    added_filters = container.filter_factory.filters
+
+    expect(added_filters.a.is_filter).to_be_true()
+    expect(added_filters.a.name).to_equal('a')
+
+    expect(added_filters.b.is_filter).to_be_true()
+    expect(added_filters.b.name).to_equal('b')
+  end
+end
+
+class MockSyntaxFileExtension
+  defm get_syntax_files
+    return self.syntax_files
+  end
+end
+
+class MockSyntaxLoader
+  defm register(syntax_file_type, syntax_file)
+    self[syntax_file_type] = syntax_file
+  end
+end
+
+class ContextWithSyntaxFilesSpec
+  defm describe
+    return 'ContextWithSyntaxFilesSpec'
+  end
+
+  defm it_can_load_syntax_files
+    container = new MockContainer()
+    container.syntax_loader = new MockSyntaxLoader()
+
+    files = {}
+    files.model = 'syntax/portkey/model.vim'
+    files.controller = 'syntax/portkey/controller.vim'
+
+    extension = new MockSyntaxFileExtension()
+    extension.syntax_files = files
+
+    context = new Context()
+    context.container = container
+
+    context.load_syntax_files(extension)
+
+    s = container.syntax_loader
+    expect(s.model).to_equal('syntax/portkey/model.vim')
+    expect(s.controller).to_equal('syntax/portkey/controller.vim')
+  end
+
+end
+
+class MockExtractor
+  def initialize(name)
+    self.name = name
+  end
+end
+
+class MockExtractorCollection
+  def initialize()
+    self.extractors = []
+  end
+
+  defm add_extractor(extractor)
+    add(self.extractors, extractor)
+  end
+end
+
+class MockExtractorExtension
+  defm get_extractors()
+    return self.extractors
+  end
+end
+
+class ContextWithExtractorsSpec
+  defm it_can_load_extensions_b
+    container = new MockContainer()
+    container.extractors = new MockExtractorCollection()
+
+    extractors = []
+    add(extractors, new MockExtractor('a'))
+    add(extractors, new MockExtractor('b'))
+
+    extension = new MockExtractorExtension()
+    extension.extractors = extractors
+
+    context = new Context()
+    context.container = container
+    context.load_extractors(extension)
+
+    added_extractors = container.extractors.extractors
+
+    expect(added_extractors).to_have_length(2)
+    expect(added_extractors[0].name).to_equal('a')
+    expect(added_extractors[1].name).to_equal('b')
+  end
+end

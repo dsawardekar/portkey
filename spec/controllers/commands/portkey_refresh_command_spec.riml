@@ -1,0 +1,32 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class PortkeyRefreshCommandSpec
+  defm describe
+    return 'PortkeyRefreshCommandSpec'
+  end
+
+  defm it_can_refresh_with_bang
+    d = new AppDriver()
+    d.start()
+
+    " new buffer inside 'rails' project with portkey.json
+    b = new Buffer('spec/projects/rails/app/models/post.rb')
+    b.find_root()
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " get completion list
+    opts = {}
+    opts.bang = true
+    d.do_autocmd('PortkeyRefresh', opts)
+
+    " must reflect alternates in portkey.json
+    expect(b.has_projection()).to_be_true()
+  end
+
+end

@@ -1,0 +1,96 @@
+class ResourceFileCommand < SwitchFileCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'ResourceFile'
+  end
+
+  " allow resource commands to work inside a file with a context
+  defm has_ex_mode
+    return self.buffer_has_context()
+  end
+
+  defm has_ctrlp_mode
+    return self.buffer_has_context()
+  end
+
+  defm get_range
+    return true
+  end
+
+  defm get_aliases
+    resource_type_names = self.get_resource_type_names()
+    aliases = []
+
+    for resource_type in resource_type_names
+      for variant in self.variants
+        alias = "#{variant}#{resource_type}"
+        add(aliases, alias)
+      end
+    end
+
+    return aliases
+  end
+
+  defm get_ctrlp_aliases
+    return self.get_resource_type_names()
+  end
+
+  defm get_finder_context
+    return 'resource_finder_context'
+  end
+
+  defm get_launcher_strategies
+    return ['pick_file_strategy', 'new_resource_strategy']
+  end
+
+  " helpers
+  defm get_resource_type_names
+    contexts = self.get_current_contexts()
+    root = self.get_current_root()
+
+    unless contexts.contains(root)
+      return []
+    end
+
+    context = contexts.get(root)
+    projections = context.get_projections()
+    resource_types = projections.get_resource_types()
+
+    return resource_types
+  end
+
+  defm get_error_label(options)
+    resource_type = options.get_resource_type()
+    if resource_type != '' && resource_type != 'unknown'
+      return resource_type
+    else
+      return self.get_name()
+    end
+  end
+
+  " allow resource command inside non projection buffers
+  " but only if that resource_type exists
+  defm can_complete(options)
+    unless self.buffer_has_context()
+      return false
+    end
+
+    projections = self.lookup('projections')
+    resource_type = options.get_resource_type()
+    projection = projections.find_by_resource_type(resource_type)
+
+    if projection.is_projection
+      options.set_resource_type(resource_type)
+      return true
+    else
+      return false
+    end
+  end
+
+  defm can_run(options)
+    return self.buffer_has_context()
+  end
+end

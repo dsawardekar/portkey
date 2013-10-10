@@ -1,0 +1,164 @@
+riml_include 'dsl.riml'
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'projection_inc.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+
+class ProjectionSpec
+  defm describe
+    return 'ProjectionSpec'
+  end
+
+  defm it_has_resource_type
+    p = new Projection('model')
+    expect(p.get_resource_type()).to_equal('model')
+  end
+
+  defm it_can_store_projection_pattern
+    p = new Projection('model')
+    p.add_pattern('app/models/*.rb')
+
+    patterns = p.get_patterns()
+    expect(patterns).to_have_length(1)
+
+    pattern = patterns[0]
+
+    expect(pattern.get_original()).to_equal('app/models/*.rb')
+    expect('app/models/foo.rb').to_match(pattern.get_regex())
+  end
+
+  defm it_can_store_multiple_projection_patterns
+    p = new Projection('model')
+    p.add_pattern('app/models/*.rb')
+    p.add_pattern('app/models/foo/*.rb')
+    p.add_pattern('app/models/bar/*.rb')
+
+    expect(p.get_patterns()).to_have_length(3)
+    expect(p.has_pattern('app/models/*.rb')).to_be_true()
+    expect(p.has_pattern('app/models/foo/*.rb')).to_be_true()
+    expect(p.has_pattern('app/models/bar/*.rb')).to_be_true()
+    expect(p.has_pattern('foo/models/bar/*.rb')).to_be_false()
+  end
+
+  defm it_wraps_string_patterns_into_an_object_with_regex
+    p = new Projection('model')
+    p.add_pattern('app/models/*.rb')
+    p.add_pattern('app/models/foo/*.rb')
+    p.add_pattern('app/models/bar/*.rb')
+
+    patterns = p.get_patterns()
+    self.verify_pattern(patterns, 0, 'app/models/foo.rb')
+    self.verify_pattern(patterns, 1, 'app/models/foo/foo.rb')
+    self.verify_pattern(patterns, 2, 'app/models/bar/foo.rb')
+  end
+
+  defm verify_pattern(patterns, index, str)
+    pa = patterns[index]
+    expect(str).to_match(pa.get_regex())
+  end
+
+  defm it_has_unique_id
+    p1 = new Projection('foo')
+    p2 = new Projection('bar')
+
+    expect(p1.get_id()).to_not_equal(p2.get_id())
+  end
+
+  defm it_gives_a_different_hash_when_revision_is_bumped
+    p = new Projection('foo')
+    id = p.get_hash()
+
+    p.bump_revision()
+    expect(p.get_hash()).to_not_equal(id)
+  end
+
+  defm verify_list_storage(projection_type, to_add)
+    p = new Projection('foo')
+
+    for template in to_add
+      checker_result = p.has_projection_template(projection_type, template)
+      expect(checker_result).to_be_false()
+
+      setter_result = p.add_projection_template(projection_type, template)
+    end
+
+    getter_result = p.get_projection_templates(projection_type)
+    expect(getter_result).to_have_length(len(to_add))
+
+    for template in to_add
+      checker_result = p.has_projection_template(projection_type, template)
+      expect(checker_result).to_be_true()
+    end
+  end
+
+  defm it_can_store_list_of_alternate
+    to_add = []
+    add(to_add, 'lorem')
+    add(to_add, 'ipsum')
+
+    self.verify_list_storage('alternate', to_add)
+  end
+
+  defm it_can_store_list_of_related
+    to_add = []
+    add(to_add, 'lorem')
+    add(to_add, 'ipsum')
+
+    self.verify_list_storage('related', to_add)
+  end
+
+  defm it_can_store_list_of_test
+    to_add = []
+    add(to_add, 'lorem')
+    add(to_add, 'ipsum')
+
+    self.verify_list_storage('test', to_add)
+  end
+
+  defm it_can_store_keywords
+    p = new Projection('foo')
+    p.add_keyword('lorem')
+    p.add_keyword('ipsum')
+
+    expect(p.get_keyword_list()).to_equal(['lorem', 'ipsum'])
+  end
+
+  defm it_can_store_affinity
+    p = new Projection('foo')
+    p.set_affinity('model')
+
+    expect(p.get_affinity()).to_equal('model')
+  end
+
+  defm it_can_store_mappings
+    p = new Projection('model')
+    expect(p.has_mapping()).to_be_false()
+
+    p.set_mapping('M')
+    expect(p.get_mapping()).to_equal('M')
+  end
+
+  defm it_can_store_compiler
+    p = new Projection('model')
+    expect(p.has_compiler()).to_be_false()
+
+    p.set_compiler('rspec')
+    expect(p.has_compiler()).to_be_true()
+    expect(p.get_compiler()).to_equal('rspec')
+  end
+
+  defm it_can_store_scope
+    p = new Projection('model')
+    expect(p.has_scope()).to_be_false()
+
+    p.set_scope('ember')
+    expect(p.has_scope()).to_be_true()
+    expect(p.get_scope()).to_equal('ember')
+  end
+
+end

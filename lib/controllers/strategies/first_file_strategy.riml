@@ -1,0 +1,12 @@
+class FirstFileStrategy
+  defm needs
+    return ['finder_facade']
+  end
+
+  defm get_launchable(finder_context, options)
+    query_type = finder_context.get_query_type(options)
+    template_context = finder_context.get_template_context(options)
+
+    return self.finder_facade.first(query_type, template_context)
+  end
+end

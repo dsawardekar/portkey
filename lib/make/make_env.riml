@@ -1,0 +1,64 @@
+class MakeEnv
+  def initialize
+    self.makeprg = &makeprg
+    self.errorformat = &errorformat
+    self.compiler = get(b:, 'current_compiler', 'null')
+
+    self.found_compiler = found_compiler = exists('b:current_compiler')
+
+    if found_compiler
+      self.compiler = b:current_compiler
+    end
+
+    self.found_local_dir = haslocaldir()
+    self.dir = getcwd()
+  end
+
+  defm get_makeprg
+    return self.makeprg
+  end
+
+  defm get_errorformat
+    return self.errorformat
+  end
+
+  defm get_dir
+    return self.dir
+  end
+
+  defm has_local_dir
+    return self.found_local_dir
+  end
+
+  defm has_compiler
+    return self.found_compiler
+  end
+
+  defm get_compiler
+    return self.compiler
+  end
+
+  defm restore
+    &makeprg = self.makeprg
+    &errorformat = self.errorformat
+    
+    self.chdir(self.dir)
+
+    if self.found_compiler
+      b:current_compiler = self.compiler
+    elseif exists('b:current_compiler')
+      :unlet b:current_compiler
+    end
+  end
+
+  defm chdir(dir)
+    cwd = getcwd()
+    if cwd != dir
+      if self.has_local_dir()
+        execute("chdir #{dir}")
+      else
+        execute("lchdir #{dir}")
+      end
+    end
+  end
+end

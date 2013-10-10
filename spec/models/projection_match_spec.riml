@@ -1,0 +1,361 @@
+riml_include 'dsl.riml'
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'trie.riml'
+riml_include 'projection_inc.riml'
+riml_include 'projection_collection.riml'
+
+class ProjectionMatcherSpec
+
+  defm describe
+    return 'ProjectionMatcherSpec'
+  end
+
+  defm compare_patterns(a, b, order)
+    pa = new ProjectionPattern(a, {})
+    pb = new ProjectionPattern(b, {})
+
+    matcher = new ProjectionMatcher({})
+    matcher.current_order = order
+    result = matcher.compare_patterns(pa, pb)
+    return result
+  end
+
+  " asc order
+  defm it_can_compare_patterns_in_same_dir
+    result = self.compare_patterns('app/models/*.rb', 'app/models/*_foo.rb', 'asc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_A_gt_B
+    result = self.compare_patterns('app/models/foo/*.rb', 'app/models/*.rb', 'asc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_B_gt_A
+    result = self.compare_patterns('app/models/*.rb', 'app/models/foo/*.rb', 'asc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_A_gt_B_no_prefix
+    result = self.compare_patterns('app/controllers/*.rb', 'app/models/*.rb', 'asc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_B_gt_A_no_prefix
+    result = self.compare_patterns('app/models/*.rb', 'app/controllers/*.rb', 'asc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_compare_patterns_in_nested_same_length_parent_dir
+    result = self.compare_patterns('app/models/apple/*.rb', 'app/models/ball/*.rb', 'asc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_without_parent_dir
+    result = self.compare_patterns('*.rb', '*_foo.rb', 'asc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_without_star_asc
+    result = self.compare_patterns('app/*.rb', 'app/routes.rb', 'asc')
+    expect(result).to_equal(-1)
+  end
+
+  " desc order
+  defm it_can_compare_patterns_in_same_dir_desc
+    result = self.compare_patterns('app/models/*.rb', 'app/models/*_foo.rb', 'desc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_A_gt_B_desc
+    result = self.compare_patterns('app/models/foo/*.rb', 'app/models/*.rb', 'desc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_B_gt_A_desc
+    result = self.compare_patterns('app/models/*.rb', 'app/models/foo/*.rb', 'desc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_A_gt_B_no_prefix_desc
+    result = self.compare_patterns('app/controllers/*.rb', 'app/models/*.rb', 'desc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_compare_patterns_in_nested_dir_B_gt_A_no_prefix_desc
+    result = self.compare_patterns('app/models/*.rb', 'app/controllers/*.rb', 'desc')
+    expect(result).to_equal(-1)
+  end
+
+  defm it_can_compare_patterns_in_nested_same_length_parent_dir_desc
+    result = self.compare_patterns('app/models/apple/*.rb', 'app/models/ball/*.rb', 'desc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_compare_patterns_without_parent_dir_desc
+    result = self.compare_patterns('*.rb', '*_foo.rb', 'desc')
+    expect(result).to_equal(1)
+  end
+
+  defm it_can_sort_patterns_in_asc_order
+    projection = new Projection('foo')
+    projection.add_pattern('app/controllers/*_apple.rb')
+    projection.add_pattern('app/models/*_cat.rb')
+    projection.add_pattern('app/controllers/*_ball.rb')
+    projection.add_pattern('app/models/*_apple.rb')
+    projection.add_pattern('app/controllers/*_cat.rb')
+    projection.add_pattern('app/models/*.rb')
+    projection.add_pattern('app/models/*_ball.rb')
+    projection.add_pattern('app/controllers/*.rb')
+
+    matcher = new ProjectionMatcher({})
+    sorted = matcher.sort_projections([projection], 'asc')
+    actual = get_pattern_list(sorted)
+
+    expected = []
+    add(expected, 'app/controllers/*.rb')
+    add(expected, 'app/controllers/*_cat.rb')
+    add(expected, 'app/controllers/*_ball.rb')
+    add(expected, 'app/controllers/*_apple.rb')
+    add(expected, 'app/models/*.rb')
+    add(expected, 'app/models/*_cat.rb')
+    add(expected, 'app/models/*_ball.rb')
+    add(expected, 'app/models/*_apple.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+  defm it_can_sort_patterns_in_desc_order
+    projection = new Projection('foo')
+    projection.add_pattern('app/models/*_ball.rb')
+    projection.add_pattern('app/models/*_apple.rb')
+    projection.add_pattern('app/models/*.rb')
+    projection.add_pattern('app/controllers/*.rb')
+    projection.add_pattern('app/controllers/*_cat.rb')
+    projection.add_pattern('app/models/*_cat.rb')
+    projection.add_pattern('app/controllers/*_apple.rb')
+    projection.add_pattern('app/models/foo.rb')
+    projection.add_pattern('app/controllers/*_ball.rb')
+
+    matcher = new ProjectionMatcher({})
+    sorted = matcher.sort_projections([projection], 'desc')
+    actual = get_pattern_list(sorted)
+
+    expected = []
+    add(expected, 'app/models/*_apple.rb')
+    add(expected, 'app/models/*_ball.rb')
+    add(expected, 'app/models/*_cat.rb')
+    add(expected, 'app/models/foo.rb')
+    add(expected, 'app/models/*.rb')
+    add(expected, 'app/controllers/*_apple.rb')
+    add(expected, 'app/controllers/*_ball.rb')
+    add(expected, 'app/controllers/*_cat.rb')
+    add(expected, 'app/controllers/*.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+  defm add_pattern(map, pattern)
+    json = {}
+    json.command = 'foo'
+    json.pattern = pattern
+
+    map.add('foo', json)
+  end
+
+  defm it_can_get_patterns_by_asc_order
+    map = new ProjectionCollection()
+
+    self.add_pattern(map, 'app/models/*_ball.rb')
+    self.add_pattern(map, 'app/models/*_apple.rb')
+    self.add_pattern(map, 'app/models/*.rb')
+    self.add_pattern(map, 'app/controllers/*.rb')
+    self.add_pattern(map, 'app/controllers/*_cat.rb')
+    self.add_pattern(map, 'app/models/*_cat.rb')
+    self.add_pattern(map, 'app/controllers/*_apple.rb')
+    self.add_pattern(map, 'app/controllers/*_ball.rb')
+
+    matcher = new ProjectionMatcher(map)
+    sorted = matcher.get_patterns('asc')
+    actual = get_pattern_list(sorted)
+
+    expected = []
+    add(expected, 'app/controllers/*.rb')
+    add(expected, 'app/controllers/*_cat.rb')
+    add(expected, 'app/controllers/*_ball.rb')
+    add(expected, 'app/controllers/*_apple.rb')
+    add(expected, 'app/models/*.rb')
+    add(expected, 'app/models/*_cat.rb')
+    add(expected, 'app/models/*_ball.rb')
+    add(expected, 'app/models/*_apple.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+  defm it_can_get_patterns_by_desc_order
+    map = new ProjectionCollection()
+
+    self.add_pattern(map, 'app/models/*_ball.rb')
+    self.add_pattern(map, 'app/models/*_apple.rb')
+    self.add_pattern(map, 'app/models/*.rb')
+    self.add_pattern(map, 'app/controllers/*.rb')
+    self.add_pattern(map, 'app/controllers/*_cat.rb')
+    self.add_pattern(map, 'app/models/*_cat.rb')
+    self.add_pattern(map, 'app/controllers/*_apple.rb')
+    self.add_pattern(map, 'app/controllers/*_ball.rb')
+
+    matcher = new ProjectionMatcher(map)
+    sorted = matcher.get_patterns('desc')
+    actual = get_pattern_list(sorted)
+
+    expected = []
+    add(expected, 'app/models/*_apple.rb')
+    add(expected, 'app/models/*_ball.rb')
+    add(expected, 'app/models/*_cat.rb')
+    add(expected, 'app/models/*.rb')
+    add(expected, 'app/controllers/*_apple.rb')
+    add(expected, 'app/controllers/*_ball.rb')
+    add(expected, 'app/controllers/*_cat.rb')
+    add(expected, 'app/controllers/*.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+
+  defm it_updates_sorted_list_when_marked_for_update
+    map = new ProjectionCollection()
+    matcher = new ProjectionMatcher(map)
+
+    self.add_pattern(map, 'app/models/*_ball.rb')
+    self.add_pattern(map, 'app/models/*_apple.rb')
+    sorted = matcher.get_patterns('asc')
+    expect(sorted).to_have_length(2)
+
+    self.add_pattern(map, 'app/models/*.rb')
+    self.add_pattern(map, 'app/controllers/*.rb')
+    self.add_pattern(map, 'app/controllers/*_cat.rb')
+    sorted = matcher.get_patterns('asc')
+    expect(sorted).to_have_length(2)
+
+    self.add_pattern(map, 'app/models/*_cat.rb')
+    self.add_pattern(map, 'app/controllers/*_apple.rb')
+    self.add_pattern(map, 'app/controllers/*_ball.rb')
+
+    matcher.update()
+
+    sorted = matcher.get_patterns('asc')
+    actual = get_pattern_list(sorted)
+
+    expected = []
+    add(expected, 'app/controllers/*.rb')
+    add(expected, 'app/controllers/*_cat.rb')
+    add(expected, 'app/controllers/*_ball.rb')
+    add(expected, 'app/controllers/*_apple.rb')
+    add(expected, 'app/models/*.rb')
+    add(expected, 'app/models/*_cat.rb')
+    add(expected, 'app/models/*_ball.rb')
+    add(expected, 'app/models/*_apple.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+  defm it_can_match_projections_for_path
+    json = {}
+    json.pattern = 'app/models/*.rb'
+    json.command = 'model'
+
+    map = new ProjectionCollection()
+    matcher = new ProjectionMatcher(map)
+    map.add('model', json)
+
+    result = matcher.match('app/models/post.rb', 'asc')
+
+    expect(result.ok).to_be_true()
+    expect(result.source).to_equal('post')
+    expect(result.pattern.get_original()).to_equal(json.pattern)
+  end
+
+  defm it_can_match_projections_for_path_without_star
+    json = {}
+    json.pattern = 'Rakefile'
+    json.type = 'rake'
+
+    map = new ProjectionCollection()
+    matcher = new ProjectionMatcher(map)
+    map.add('rake', json)
+
+    result = matcher.match('Rakefile', 'asc')
+
+    expect(result.ok).to_be_true()
+    expect(result.source).to_equal('Rakefile')
+    expect(result.pattern.get_original()).to_equal(json.pattern)
+  end
+
+  defm it_returns_empty_match_for_unknown_path
+    json = { 'command': 'model' }
+    map = new ProjectionCollection()
+    matcher = new ProjectionMatcher(map)
+    map.add('model', json)
+
+    result = matcher.match('app/controllers/post_controller.rb', 'asc')
+    expect(result.ok).to_be_false()
+  end
+
+  defm it_can_match_correct_projection_for_overlapping_patterns_aby
+    self.map = new ProjectionCollection()
+    self.matcher = new ProjectionMatcher(self.map)
+
+    self.add_map_pattern('spec/models/ipsum/*.rb')
+    self.add_map_pattern('spec/models/*.rb')
+    self.add_map_pattern('spec/controllers/*.rb')
+    self.add_map_pattern('spec/models/*_lorem.rb')
+    self.add_map_pattern('spec/models/*_foo.rb')
+    self.add_map_pattern('spec/models/lorem/*.rb')
+    sorted = self.matcher.get_patterns('desc')
+
+    self.verify_match('spec/models/foo.rb', 'foo', 'spec/models/*.rb')
+    self.verify_match('spec/models/stuff_foo.rb', 'stuff', 'spec/models/*_foo.rb')
+    self.verify_match('spec/models/lorem/foo.rb', 'foo', 'spec/models/lorem/*.rb')
+    self.verify_match('spec/models/ipsum/bar.rb', 'bar', 'spec/models/ipsum/*.rb')
+    self.verify_match('spec/controllers/foo.rb', 'foo', 'spec/controllers/*.rb')
+  end
+
+  defm add_map_pattern(pattern)
+    json = { 'command': 'test', 'pattern': pattern }
+    self.map.add('test', json)
+  end
+
+  defm verify_match(path, source, pattern)
+    match = self.matcher.match(path, 'desc')
+
+    expect(match.ok).to_be_true()
+    expect(match.source).to_equal(source)
+    expect(match.pattern.get_original()).to_equal(pattern)
+    expect(match.pattern.get_projection().get_resource_type()).to_equal('test')
+  end
+
+end
+
+def print_patterns(patterns)
+  for pattern in patterns
+    info(pattern.get_original())
+  end
+end
+
+def print_list(patterns)
+  for pattern in patterns
+    info(pattern)
+  end
+end
+
+def get_pattern_list(list)
+  l = []
+  for item in list
+    add(l, item.get_original())
+  end
+
+  return l
+end
+

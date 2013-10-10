@@ -1,0 +1,41 @@
+class ConfigureBufferCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'ConfigureBuffer'
+  end
+
+  " not using some helpers as this command is responsible
+  " for setting up the 'current' context
+  defm run(buffer, opts)
+    container = self.container
+    root = buffer.get_abs_root()
+    contexts = container.lookup('contexts')
+
+    " new buffer so add it's context
+    unless contexts.contains(root)
+      success = contexts.add(root)
+
+      if success
+        :redraw
+        echomsg "Portkey: Loading (#{buffer.get_portkey_display_path()}) ... DONE"
+      end
+    end
+
+    " if buffer now contains context cache it's projection
+    if contexts.contains(root)
+      context = contexts.get(root)
+      projections = context.get_projections()
+      match = projections.match(buffer.get_rel_path())
+
+      " if it has projections we'll save it on the buffer
+      " reduces complexity of other commands
+      " if they don't have to lookup the projection
+      if match.ok
+        buffer.set_match(match)
+      end
+    end
+  end
+end

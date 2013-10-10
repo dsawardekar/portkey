@@ -1,0 +1,195 @@
+{
+  "*": {
+    "type": "star",
+    "alternate": "star_%s.foo"
+  },
+  "Rakefile": {
+    "type": "rake",
+    "alternate": "my_%s.rake"
+  },
+  "lib/models/*.riml": {
+    "type": "model",
+    "related": "lib/collections/%s_collection.riml",
+    "test": "spec/models/%s_spec.riml",
+    "template": "%S < Parent"
+  },
+  "lib/collections/*_collection.riml": {
+    "type": "collection",
+    "related": "lib/models/%s.riml",
+    "test": "spec/collections/%s_collection_spec.riml"
+  },
+  "lib/commands/*.riml": {
+    "type": "basecommand",
+    "test": "spec/commands/%s_spec.riml"
+  },
+  "lib/controllers/*.riml": {
+    "type": "controller",
+    "test": "spec/controllers/%s_spec.riml"
+  },
+  "lib/controllers/commands/*_command.riml": {
+    "type": "command",
+    "test": "spec/controllers/commands/%s_command_spec.riml"
+  },
+  "lib/container/*.riml": {
+    "type": "container",
+    "test": "spec/container/%s_spec.riml"
+  },
+  "lib/ctrlp/*.riml": {
+    "type": "ctrlp",
+    "test": "spec/ctrlp/%s_spec.riml"
+  },
+  "lib/extensions/*.riml": {
+    "type": "extension",
+    "test": "spec/extensions/%s_spec.riml"
+  },
+  "lib/finders/*.riml": {
+    "type": "finder",
+    "test": "spec/finders/%s_spec.riml"
+  },
+  "lib/inflector/*.riml": {
+    "type": "inflector",
+    "test": "spec/inflector/%s_spec.riml"
+  },
+  "lib/logger/*.riml": {
+    "type": "logger",
+    "test": "spec/logger/%s_spec.riml"
+  },
+  "lib/make/*.riml": {
+    "type": "make",
+    "test": "spec/make/%s_spec.riml"
+  },
+  "lib/maps/*.riml": {
+    "type": "map",
+    "test": "spec/maps/%s_spec.riml"
+  },
+  "lib/quibbler/*.riml": {
+    "type": "quibbler",
+    "test": "spec/quibbler/%s_spec.riml"
+  },
+  "lib/rankers/*.riml": {
+    "type": "ranker",
+    "test": "spec/rankers/%s_spec.riml"
+  },
+  "lib/syntax/*.riml": {
+    "type": "syntax",
+    "test": "spec/syntax/%s_spec.riml"
+  },
+  "lib/trie/*.riml": {
+    "type": "trie",
+    "test": "spec/trie/%s_spec.riml"
+  },
+  "lib/utils/*.riml": {
+    "type": "utility",
+    "test": "spec/utils/%s_spec.riml"
+  },
+  "lib/launcher/*.riml": {
+    "type": "launcher",
+    "test": "spec/launcher/%s_spec.riml"
+  },
+  "lib/controllers/strategies/*_strategy.riml": {
+    "type": "strategy",
+    "test": "spec/controllers/%s_strategy_spec.riml"
+  },
+  "lib/*.riml": {
+    "type": "app",
+    "test": "spec/%s_spec.riml"
+  },
+
+
+
+  "spec/mocks/*_mock.riml": {
+    "type": "mock"
+  },
+  "spec/matchers/*_matcher.riml": {
+    "type": "matcher"
+  },
+
+
+
+  "spec/models/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/models/%s.riml",
+    "template": "%SModelSpec < Base"
+  },
+  "spec/collections/*_collection_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/collections/%s_collection.riml"
+  },
+  "spec/commands/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/commands/%s.riml"
+  },
+  "spec/controllers/*_spec.riml": {
+    "type": "spec",
+    "test": "lib/controllers/%s.riml"
+  },
+  "spec/controllers/commands/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/controller/commands/%s_command.riml"
+  },
+  "spec/container/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/container/%s.riml"
+  },
+  "spec/ctrlp/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/ctrlp/%s.riml"
+  },
+  "spec/extensions/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/extensions/%s.riml"
+  },
+  "spec/finders/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/finders/%s.riml"
+  },
+  "spec/inflector/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/inflector/%s.riml"
+  },
+  "spec/logger/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/logger/%s.riml"
+  },
+  "spec/make/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/make/%s.riml"
+  },
+  "spec/maps/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/maps/%s.riml"
+  },
+  "spec/quibbler/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/quibbler/%s.riml"
+  },
+  "spec/rankers/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/rankers/%s.riml"
+  },
+  "spec/syntax/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/syntax/%s.riml"
+  },
+  "spec/trie/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/trie/%s.riml"
+  },
+  "spec/utils/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/utils/%s.riml",
+    "template": "foo %s item "
+  },
+  "spec/launcher/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/launcher/%s.riml"
+  },
+  "spec/controllers/strategies/*_strategy.riml": {
+    "type": "strategy",
+    "alternate": "spec/controllers/%s_strategy_spec.riml"
+  },
+  "spec/*_spec.riml": {
+    "type": "spec",
+    "alternate": "lib/%s.riml"
+  }
+}

@@ -1,0 +1,90 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'msg.riml'
+riml_include 'buffer_opener.riml'
+riml_include 'file_opener.riml'
+riml_include 'container.riml'
+
+class MockContext
+  def initialize
+    self.is_mock_context = true
+  end
+
+  defm get_root
+    return self.root
+  end
+end
+
+class FileOpenerMock
+  def initialize
+  end
+
+  defm open(path, window_mode)
+    self.path = path
+    self.window_mode = window_mode
+  end
+end
+
+class BufferOpenerSpec
+  defm before_each
+    self.container = new Container({})
+    self.container.register('buffer_opener', 'BufferOpener', true)
+    self.container.register('file_opener', 'FileOpener', true)
+    self.container.register('context', 'MockContext', true)
+  end
+
+  defm it_can_be_created
+    o = self.container.lookup('buffer_opener')
+    expect(o.context.is_mock_context).to_be_true()
+    expect(o.file_opener.is_file_opener).to_be_true()
+  end
+
+  defm it_can_build_abs_path
+    o = self.container.lookup('buffer_opener')
+    context = o.context
+    context.root = '/foo/bar/'
+
+    expect(o.get_abs_path('lorem.rb')).to_equal('/foo/bar/lorem.rb')
+  end
+
+  defm it_can_build_rel_path_to_cwd
+    o = self.container.lookup('buffer_opener')
+    context = o.context
+    context.root = fnamemodify('spec/projects/rails/', ':p')
+
+    expect(o.get_rel_path('app/models/post.rb')).to_equal('spec/projects/rails/app/models/post.rb')
+  end
+
+  defm it_can_open_file_if_it_exists
+    o = self.container.lookup('buffer_opener')
+    c = o.context
+    c.root = 'spec/projects/basic/'
+    fo = o.file_opener
+    fo.set_exec_mode(false)
+
+    result = o.open('foo.rb', false, 'e')
+    expect(result).to_be_true()
+    expect(fo.exec_cmd).to_match('spec/projects/basic/foo.rb')
+  end
+
+  defm it_wont_open_file_if_it_doesnt_exist
+    o = self.container.lookup('buffer_opener')
+    c = o.context
+    c.root = 'spec/projects/basic/'
+
+    result = o.open('unknown_file.rb', false, 'e')
+    expect(result).to_be_false()
+  end
+
+  defm it_can_create_new_file
+    o = self.container.lookup('buffer_opener')
+    c = o.context
+    c.root = 'spec/projects/basic/'
+    fo = o.file_opener
+    fo.set_exec_mode(false)
+
+    result = o.open('my_file.rb', true, 'e')
+    expect(result).to_be_true()
+    expect(fo.exec_cmd).to_match('spec/projects/basic/my_file.rb')
+  end
+end

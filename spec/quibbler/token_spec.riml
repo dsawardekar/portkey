@@ -1,0 +1,35 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'token.riml'
+riml_include 'token_matcher.riml'
+
+class TokenSpec
+  defm describe
+    return 'TokenSpec'
+  end
+
+  defm it_has_type_and_value
+    token = new Token(2, 'foo')
+    expect(token.type).to_equal(2)
+    expect(token.value).to_equal('foo')
+  end
+
+  defm it_can_find_tokens_name
+    expect(get_token_name(0)).to_equal('itemError')
+  end
+
+  defm it_can_find_tokens_id
+    expect(get_token_id('itemError')).to_equal(0)
+  end
+
+  defm it_has_required_scriptlocal_tokens
+    expect(s:itemError).to_be_token('itemError')
+    expect(s:itemModifier).to_be_token('itemModifier')
+    expect(s:itemPlaceholder).to_be_token('itemPlaceholder')
+    expect(s:itemFilter).to_be_token('itemFilter')
+    expect(s:itemText).to_be_token('itemText')
+    expect(s:itemTab).to_be_token('itemTab')
+    expect(s:itemNewline).to_be_token('itemNewline')
+    expect(s:itemEOF).to_be_token('itemEOF')
+  end
+end

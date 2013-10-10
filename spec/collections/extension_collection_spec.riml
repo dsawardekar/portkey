@@ -1,0 +1,54 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'extension_collection.riml'
+
+class MockExtension
+  def initialize(name)
+    self.is_extension = true
+    self.name = name
+  end
+
+  defm get_name
+    return self.name
+  end
+end
+
+class ExtensionCollectionSpec
+  defm describe
+    return 'ExtensionCollectionSpec'
+  end
+
+  defm it_can_be_created
+    e = new ExtensionCollection()
+  end
+
+  defm it_can_store_extensions
+    e = new ExtensionCollection()
+    e.add_extension(new MockExtension('a'))
+
+    expect(e.get_extension('a').get_name()).to_equal('a')
+  end
+
+  defm it_can_detect_if_exection_is_absent
+    e = new ExtensionCollection()
+    expect(e.has_extension('foo')).to_be_false()
+  end
+
+  defm it_can_detect_if_exection_is_present
+    e = new ExtensionCollection()
+    e.add_extension(new MockExtension('foo'))
+    expect(e.has_extension('foo')).to_be_true()
+  end
+
+  defm it_can_give_all_extensions
+    e = new ExtensionCollection()
+    e.add_extension(new MockExtension('a'))
+    e.add_extension(new MockExtension('b'))
+    e.add_extension(new MockExtension('c'))
+
+    a = e.get_all_extensions()
+    expect(a).to_have_length(3)
+    expect(a[0].is_extension).to_be_true()
+  end
+end
+

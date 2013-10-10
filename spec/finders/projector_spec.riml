@@ -1,0 +1,210 @@
+riml_include 'dsl.riml'
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'object_cache.riml'
+riml_include 'memoizer.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'inflections.riml'
+riml_include 'inflector.riml'
+riml_include 'projection_inc.riml'
+riml_include 'template_context.riml'
+riml_include 'projector.riml'
+riml_include 'container.riml'
+
+class MockProjection
+  defm get_projection_templates(...)
+    return self.templates
+  end
+end
+
+class MockTemplate
+  defm is_compiled
+    return self.compiled
+  end
+
+  defm compile(...)
+    self.did_compile = true
+  end
+
+  defm has_error
+    return self.error
+  end
+
+  defm render(...)
+    self.did_render = true
+    return self.render_result
+  end
+end
+
+class MockProjectionCollection
+  defm match(pattern)
+    return self.match_result
+  end
+end
+
+class MockFilterFactory
+end
+
+class ProjectorSpec
+  defm describe
+    return 'ProjectorSpec'
+  end
+
+  defm before_each
+    self.lexer = new Lexer()
+    self.compiler = new Compiler()
+    self.compiler.filter_factory = {}
+    self.projector = new Projector()
+    self.projector.lexer = self.lexer
+    self.projector.compiler = self.compiler
+  end
+
+  defm after_each
+    :unlet self.projector
+    :unlet self.lexer
+    :unlet self.compiler
+  end
+
+  defm it_can_compile_list_of_templates_from_projection
+    p = new Projection('foo')
+    p.add_projection_template('alternate', '%{source}.rb')
+    p.add_projection_template('alternate', '%{source}.txt')
+    p.add_projection_template('alternate', '%{source}.html')
+
+    context = new TemplateContext({'source': 'foo'})
+    result = self.projector.get_projection_templates(p, 'alternate', context)
+    expect(result).to_equal(['foo.rb', 'foo.txt', 'foo.html'])
+  end
+
+  defm it_excludes_templates_with_errors
+    p = new Projection('foo')
+    p.add_projection_template('alternate', '%{source}.rb')
+    p.add_projection_template('alternate', '%{}.txt')
+    p.add_projection_template('alternate', '%{source')
+    p.add_projection_template('alternate', '%{source|')
+    p.add_projection_template('alternate', '%{source|foo.html')
+
+    context = new TemplateContext({'source': 'foo'})
+    result = self.projector.get_projection_templates(p, 'alternate', context)
+    expect(result).to_equal(['foo.rb'])
+  end
+
+  defm it_does_not_compile_template_if_already_compiled
+    t = new MockTemplate()
+    t.compiled = true
+    t.did_compile = false
+    t.error = false
+    t.render_result = 'foo'
+    p = new MockProjection()
+    p.templates = [t]
+
+    result = self.projector.get_projection_templates(p, 'alternate', {})
+    expect(t.did_compile).to_be_false()
+
+    t.compiled = false
+
+    result = self.projector.get_projection_templates(p, 'alternate', {})
+    expect(t.did_compile).to_be_true()
+  end
+
+  defm it_can_compile_projection_template_string
+    match_result = new ProjectionMatch(true)
+    c = new Container({})
+    projections = new MockProjectionCollection()
+    projections.match_result = match_result
+    c.register('projections', projections)
+    p = new Projection('model')
+    pattern = p.add_pattern('*.rb')
+    pattern.set_template('class %s\nend')
+    match_result.set_pattern(pattern)
+    self.projector.projections = projections
+
+    c = new TemplateContext({'source': 'lorem'})
+
+    result = self.projector.get_file_template('*.rb', c)
+    expect(result).to_equal("class lorem\nend")
+  end
+
+  defm it_can_work_within_container
+    c = new Container({})
+    c.register('lexer', 'Lexer')
+    c.register('compiler', 'Compiler')
+    c.register('filter_factory', 'MockFilterFactory')
+    c.register('projections', 'MockProjectionCollection', true)
+    c.register('projector', 'Projector')
+
+    match_result = new ProjectionMatch(true)
+
+    projections = c.lookup('projections')
+    projections.match_result = match_result
+
+    pro = c.lookup('projector')
+
+    p = new Projection('model')
+    pattern = p.add_pattern('*.rb')
+    pattern.set_template('class %s\nend')
+    match_result.set_pattern(pattern)
+
+    c = new TemplateContext({'source': 'lorem'})
+
+    result = pro.get_file_template(p, c)
+    expect(result).to_equal("class lorem\nend")
+  end
+end
+
+class ProjectorPerfSpec
+  defm describe
+    return 'ProjectorPerfTest'
+  end
+
+  defm before
+    self.lexer = new Lexer()
+    self.compiler = new Compiler()
+    self.compiler.filter_factory = {}
+    self.projector = new Projector()
+    self.projector.lexer = self.lexer
+    self.projector.compiler = self.compiler
+    self.projection = new Projection('foo')
+
+    for i in range(1, 10)
+      self.projection.add_projection_template('alternate', "#{i}-%{source}.rb -- #{i}-%{source}.rb -- #{i}-%{source}.rb -- #{i}-%{source}.rb -- #{i}-%{source}.rb -- #{i}-%{source}.rb")
+    end
+  end
+
+  defm has_perf_tag
+    return exists('g:speckle_tag') && g:speckle_tag == 'perf'
+  end
+
+  " ~70 ms for 10 alternates
+  " Real-world will have have lesser alternatives, more placeholders, and filters
+  " Confirms that if we can precompile templates
+  " on say BufferEnter any performance issues with the lexer
+  " will be mitigated by the caching
+  defm it_is_fast_enough_perf
+    unless self.has_perf_tag()
+      return
+    end
+
+    context = new TemplateContext({'source': 'foo'})
+    result = self.projector.get_projection_templates(self.projection, 'alternate', context)
+    expect(result).to_have_length(10)
+  end
+
+  " second run with caching is under 10ms "
+  defm it_is_fast_enough_after_cache_perf
+    unless self.has_perf_tag()
+      return
+    end
+
+    context = new TemplateContext({'source': 'foo'})
+    result = self.projector.get_projection_templates(self.projection, 'alternate', context)
+    expect(result).to_have_length(10)
+  end
+end

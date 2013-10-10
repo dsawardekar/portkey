@@ -1,0 +1,20 @@
+riml_include 'dsl.riml'
+riml_include 'portkey_inc.riml'
+
+class AppSpec
+  defm describe
+    return 'AppSpec'
+  end
+
+  defm before_each
+    self.app = new App()
+  end
+
+  defm after_each
+    :unlet self.app
+  end
+
+  defm it_can_be_started
+    self.app.start()
+  end
+end

@@ -1,0 +1,172 @@
+class Launcher
+  def initialize
+    self.is_launcher = true
+  end
+
+  defm run(strategies, finder_context, options)
+    self.options = options
+
+    launchables = self.lookup('launchables')
+    options.set_launchables(launchables)
+
+    for strategy_class in strategies
+      strategy = self.create_strategy(strategy_class)
+      filepath = strategy.get_launchable(finder_context, options)
+      launchable = new Launchable(filepath, strategy_class)
+      launchables.add(launchable)
+
+      unless filepath == ''
+        return launchable
+      end
+    end
+
+    return { 'is_launchable': false }
+  end
+
+  defm launch(strategies, finder_context, options)
+    launchable = self.run(strategies, finder_context, options)
+
+    if launchable.is_launchable
+      filepath = launchable.filepath
+      create_if_not_found = options.get_bang()
+      window_mode = options.get_window_mode()
+      buffer_opener = self.lookup('buffer_opener')
+      abs_filepath = buffer_opener.get_abs_path(filepath)
+      file_exists = filereadable(abs_filepath)
+
+
+      if options.has_range()
+        " if file exists we'll append to it always
+        options.set_append_mode(file_exists)
+
+        " if range is specified we assume auto file creation as default
+        " so bang is optional when extracting
+        create_if_not_found = true
+
+        self.extract_from_source(finder_context, options)
+      end
+
+      " if user's hidden is off we can't use the current window
+      " we'll use a split instead
+      if (window_mode == 'e' || window_mode == 'edit') && &hidden == false
+        window_mode = 's'
+      end
+
+      success = buffer_opener.open(filepath, create_if_not_found, window_mode)
+      launchable.set_launched(success)
+
+      " TODO: need case for extract success but buffer open failure
+      if success
+        if options.has_range()
+          self.extract_into_destination(finder_context, options)
+        elseif !file_exists
+          self.render_template(filepath, options)
+        end
+      end
+    end
+
+    return launchable
+  end
+
+  defm render_template(filepath, options)
+    context = self.get_file_template_context(filepath, options)
+    projector = self.lookup('projector')
+    template = projector.get_file_template(filepath, context)
+
+    if template != ''
+      lines = str_to_lines(template)
+      setline(1, lines)
+    end
+  end
+
+  " TODO: Assumptions for defaults here need to be revisited
+  " Bulk of this is due to Resource command from buffer which does have
+  " projection. Allowing that is useful but requires some guesswork
+  " for templates to work
+  defm get_file_template_context(filepath, options)
+    buffers = self.lookup('buffers')
+    current_buffer = buffers.get_current()
+
+    source_name = self.find_source_name(filepath)
+
+    data_frame = new FileTemplateDataFrame(current_buffer)
+    data_frame.set_source(source_name)
+    data_frame.set_source_path(current_buffer.get_rel_path())
+
+    template_context = new TemplateContext(data_frame)
+
+    return template_context
+  end
+
+  " we rematch here because after shortening the filepaths are unpredictable
+  defm find_source_name(filepath)
+    projections = self.lookup('projections')
+    match = projections.match(filepath)
+    if match.ok
+      return match.get_source()
+    else
+      return ''
+    end
+  end
+
+  defm extract_from_source(finder_context, options)
+    extractors = self.lookup('extractors')
+
+    self.extractor = extractors.find_extractor(finder_context)
+
+    if self.extractor.is_extractor
+      [range_start, range_end] = options.get_range()
+      self.extracted_lines = getline(range_start, range_end)
+      self.container.inject(self.extractor)
+      self.extractor.change_source(range_start, range_end, options)
+    end
+  end
+
+  defm extract_into_destination(finder_context, options)
+    if self.extractor.is_extractor
+      self.extractor.change_destination(self.extracted_lines, options)
+    end
+  end
+
+  defm create_strategy(klass)
+    return self.container.lookup(klass)
+  end
+
+  defm lookup(name)
+    return self.container.lookup(name)
+  end
+
+  defm on_inject
+    self.container = self.container.child()
+
+    self.container.register('launchables', 'LaunchableCollection', true)
+    self.container.register('buffer_opener', 'BufferOpener', true)
+    self.container.register('launcher', self)
+  end
+end
+
+class Launchable
+  def initialize(filepath, strategy)
+    self.filepath = filepath
+    self.strategy = strategy
+    self.is_launchable = true
+    self.launched = false
+  end
+
+  defm get_strategy
+    return self.strategy
+  end
+
+  defm get_filepath
+    return self.filepath
+  end
+
+  defm set_launched(launched)
+    self.launched = launched
+  end
+
+  defm get_launched
+    return self.launched
+  end
+end
+

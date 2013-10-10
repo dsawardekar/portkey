@@ -1,0 +1,214 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'object_cache.riml'
+riml_include 'ranker.riml'
+
+class MockRanker
+  def initialize(name)
+    self.name = name
+    self.result = true
+  end
+
+  defm rank(context, items)
+    i = 0
+    for item in items
+      item.set_ranking(self.rankings[i])
+      i += 1
+    end
+
+    return self.result
+  end
+end
+
+class RankerSpec
+  defm describe
+    return 'RankerSpec'
+  end
+
+  defm it_can_store_rankers
+    r = new Ranker()
+    r.add_ranker('projection', new MockRanker('a'))
+    r.add_ranker('projection', new MockRanker('b'))
+    r.add_ranker('projection', new MockRanker('c'))
+
+    rankers = r.get_rankers('projection')
+    expect(rankers[0].name).to_equal('c')
+    expect(rankers[1].name).to_equal('b')
+    expect(rankers[2].name).to_equal('a')
+  end
+
+  defm it_can_convert_results_to_rank_items
+    r = new Ranker()
+    res = ['a', 'b', 'c']
+    items = r.to_rank_items(res)
+
+    expect(self.get_path_at(items, 0)).to_equal('a')
+    expect(self.get_path_at(items, 1)).to_equal('b')
+    expect(self.get_path_at(items, 2)).to_equal('c')
+  end
+
+  defm it_can_convert_rank_items_to_results
+    r = new Ranker()
+    res = ['a', 'b', 'c']
+    items = r.to_rank_items(res)
+    res2 = r.to_results(items)
+
+    expect(res2).to_equal(res)
+  end
+
+  defm it_can_compare_rank_items_a_lt_b
+    r = new Ranker()
+    a = new RankItem('a', 0)
+    b = new RankItem('b', 1)
+
+    expect(r.compare_rank_items(a, b)).to_equal(1)
+  end
+
+  defm it_can_compare_rank_items_a_gt_b
+    r = new Ranker()
+    a = new RankItem('a', 1)
+    b = new RankItem('b', 0)
+
+    expect(r.compare_rank_items(a, b)).to_equal(-1)
+  end
+
+  defm it_can_sort_items_by_rank_a_lt_b
+    input = ['a', 'b', 'c']
+    rankings = [0, 2, 1]
+    expected = ['b', 'c', 'a']
+
+    self.verify_ranking(input, rankings, expected)
+  end
+
+  defm it_can_sort_items_by_rank_sequence
+    input = ['a', 'b', 'c', 'd', 'e']
+    rankings = [0, 1, 2, 3, 4]
+    expected = ['e', 'd', 'c', 'b', 'a']
+
+    self.verify_ranking(input, rankings, expected)
+  end
+
+  defm it_keeps_original_order_if_no_rankings_given
+    input = ['a', 'b', 'c', 'd', 'e']
+    rankings = [0, 0, 0, 0, 0]
+    expected = ['a', 'b', 'c', 'd', 'e']
+
+    self.verify_ranking(input, rankings, expected)
+  end
+
+  defm it_can_bubble_up_single_item
+    input = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+    rankings = [0, 0, 0, 0, 1, 0, 0]
+    expected = ['e', 'a', 'b', 'c', 'd', 'f', 'g']
+
+    self.verify_ranking(input, rankings, expected)
+  end
+
+  defm it_can_use_multiple_rankers
+    input = ['a', 'b', 'c']
+    r = new Ranker()
+    ra = new MockRanker('foo')
+    ra.rankings = [0, 1, 2]
+    ra.result = false
+    r.add_ranker('projection', ra)
+
+    ra = new MockRanker('foo')
+    ra.rankings = [2, 1, 0]
+    ra.result = false
+    r.add_ranker('projection', ra)
+
+    ranked_results = r.rank('projection', {}, input)
+
+    expect(ranked_results).to_equal(['a', 'b', 'c'])
+  end
+
+  defm it_stops_futher_ranking_if_ranker_returns_true
+    input = ['a', 'b', 'c']
+    r = new Ranker()
+    ra = new MockRanker('foo')
+    ra.rankings = [0, 1, 2]
+    ra.result = false
+    r.add_ranker('projection', ra)
+
+    ra = new MockRanker('foo')
+    ra.rankings = [2, 1, 0]
+    r.add_ranker('projection', ra)
+
+    ranked_results = r.rank('projection', {}, input)
+
+    expect(ranked_results).to_equal(['c', 'b', 'a'])
+  end
+
+  defm verify_ranking(input, rankings, expected)
+    r = new Ranker()
+    ra = new MockRanker('foo')
+    ra.rankings = rankings
+
+    r.add_ranker('projection', ra)
+    ranked_results = r.rank('projection', {}, input)
+
+    expect(ranked_results).to_equal(expected)
+  end
+
+  defm get_path_at(items, index)
+    item = items[index]
+    return item.get_path()
+  end
+end
+
+class TopRanker
+  def initialize(target)
+    self.target = target
+  end
+
+  defm rank(context, results)
+    for result in results
+      if result.get_path() == self.target
+        result.raise()
+        return false
+      end
+    end
+  end
+end
+
+class BottomRanker
+  def initialize(target)
+    self.target = target
+  end
+
+  defm rank(context, results)
+    for result in results
+      if result.get_path() == self.target
+        result.set_ranking(-100)
+        return false
+      end
+    end
+  end
+end
+
+class RankerE2ESpec
+  defm describe
+    return 'RankerE2ESpec'
+  end
+
+  defm it_can_bring_item_to_top
+    r = new Ranker()
+    tr = new TopRanker('html')
+    r.add_ranker('projection', tr)
+    results = ['yml', 'rb', 'html', 'txt']
+
+    ranked_results = r.rank('projection', {}, results)
+    expect(ranked_results[0]).to_equal('html')
+  end
+
+  defm it_can_send_item_to_bottom
+    r = new Ranker()
+    tr = new BottomRanker('html')
+    r.add_ranker('projection', tr)
+    results = ['yml', 'rb', 'html', 'txt']
+
+    ranked_results = r.rank('projection', {}, results)
+    expect(ranked_results[3]).to_equal('html')
+  end
+end

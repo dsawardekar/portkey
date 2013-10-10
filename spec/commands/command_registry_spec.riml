@@ -1,0 +1,480 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'msg.riml'
+riml_include 'delegate.riml'
+riml_include 'ctrlp_extension.riml'
+riml_include 'base_command.riml'
+riml_include 'command_builder.riml'
+riml_include 'command_registry.riml'
+riml_include 'command_mock.riml'
+
+class BasicCommandRegistrySpec
+  defm describe
+    return 'BasicCommandRegistrySpec'
+  end
+
+  defm before_each
+    self.registry = new CommandRegistry()
+  end
+
+  defm after_each
+    self.registry.remove_all()
+    :unlet self.registry
+  end
+
+  defm it_can_store_commands
+    cmd = new MockCommand()
+    self.registry.add(cmd)
+
+    expect(self.registry.find('MockCommand').cmd).to_equal(cmd)
+  end
+
+  defm it_wont_find_unknown_command
+    expect(self.registry.find('SomeUnknownCommand').ok).to_be_false()
+  end
+
+  defm it_can_remove_commands
+    cmd = new MockCommand()
+    self.registry.add(cmd)
+    self.registry.remove(cmd)
+
+    expect(self.registry.find('MockCommand').ok).to_be_false()
+    expect(exists(':MockCommand')).to_be_false()
+  end
+
+  defm it_can_detect_if_command
+    cmd = new MockCommand()
+    expect(self.registry.is_cmd(cmd)).to_be_true()
+    expect(self.registry.is_cmd(0)).to_be_false()
+  end
+
+  defm it_can_find_commands_by_aliases
+    cmd = new MockCommand()
+    cmd.aliases = ['Foo', 'Bar']
+
+    expect(self.registry.command_has_name(cmd, 'Foo').ok).to_be_true()
+    expect(self.registry.command_has_name(cmd, 'Lorem').ok).to_be_false()
+  end
+
+  defm it_can_find_commands_by_command_line
+    cmd = new MockCommand()
+    cmd_line = "MockCommand lorem ipsum dolor"
+
+    expect(self.registry.command_has_name(cmd, cmd_line).ok).to_be_true()
+  end
+
+  defm it_can_detect_presence_of_bang_from_opts
+    args = []
+    opts = {'bang': '1'}
+
+    r = self.registry.has_bang(args, opts)
+    expect(r).to_be_true()
+  end
+
+  defm it_can_detect_absence_of_bange_from_opts
+    args = []
+    opts = {'bang': ''}
+
+    r = self.registry.has_bang(args, opts)
+    expect(r).to_be_false()
+  end
+
+  defm it_can_detect_presence_of_trailing_bang
+    args = ['foo!']
+    opts = {'bang': ''}
+
+    r = self.registry.has_bang(args, opts)
+    expect(r).to_be_true()
+  end
+
+  defm it_removes_trailing_bang_from_last_arg
+    args = ['foo!']
+    opts = {'bang': ''}
+
+    r = self.registry.has_bang(args, opts)
+    expect(r).to_be_true()
+    expect(args[0]).to_equal('foo')
+  end
+
+  defm it_can_detect_present_of_range_from_opts
+    args = []
+    opts = {'line1': 1, 'line2': 2, 'count': 2}
+
+    r = self.registry.has_range(args, opts)
+    expect(r).to_be_true()
+  end
+
+  defm it_ignore_negative_range
+    args = []
+    opts = {'line1': 1, 'line2': 1, 'count': -1}
+
+    r = self.registry.has_range(args, opts)
+    expect(r).to_be_false()
+  end
+
+  defm it_can_detect_absence_of_range_from_opts
+    args = []
+    opts = {'bang': ''}
+
+    r = self.registry.has_range(args, opts)
+    expect(r).to_be_false()
+  end
+end
+
+class CommandRegistryCommandExecSpec
+  defm describe
+    return 'Execution of Commands inside CommandRegistry'
+  end
+
+  defm before_each
+    self.registry = new CommandRegistry()
+  end
+
+  defm after_each
+    :unlet self.registry
+  end
+
+  defm it_can_run_command_added_to_registry
+    cmd = new MockCommand()
+    self.registry.add(cmd)
+
+    result = self.registry.run_command(cmd.get_command_id(), 'MockCommand', ['a', 'b', 'c'], {})
+    expect(result).to_equal(['a', 'b', 'c'])
+    self.registry.remove(cmd)
+  end
+
+  defm it_will_not_run_unknown_command
+    result = self.registry.run_command(10000, 'UnknownCommand', ['a', 'b', 'c'], {})
+    expect(result).to_be_false()
+  end
+
+  defm it_can_run_command_from_ex_command_execution
+    cmd = new MockCommand()
+    self.registry.add(cmd)
+
+    execute(':MockCommand a b c')
+    expect(cmd.run_args).to_equal(['a', 'b', 'c'])
+    self.registry.remove(cmd)
+  end
+
+  defm it_can_run_command_with_underscore_in_name
+    cmd = new MockCommand()
+    cmd.name = 'Mock_Command'
+    self.registry.add(cmd)
+
+    execute(':MockCommand a b c')
+    expect(cmd.run_args).to_equal(['a', 'b', 'c'])
+    self.registry.remove(cmd)
+  end
+
+  defm it_picks_up_bang_from_ex_command_execution
+    cmd = new MockCommand()
+    cmd.bang = true
+    self.registry.add(cmd)
+
+    execute(':MockCommand! a b c')
+    expect(cmd.run_options.bang).to_be_true()
+    self.registry.remove(cmd)
+  end
+
+  defm it_detects_absence_of_bang_from_ex_command_execution
+    cmd = new MockCommand()
+    cmd.bang = true
+    self.registry.add(cmd)
+
+    execute(':MockCommand a b c')
+    expect(cmd.run_options.bang).to_be_false()
+    self.registry.remove(cmd)
+  end
+
+  defm it_provides_the_match_name_to_the_executed_command
+    cmd = new MockCommand()
+    cmd.name = 'Alternate'
+    cmd.aliases = ['AV', 'AH', 'A']
+    self.registry.add(cmd)
+
+    execute(':AV a b c')
+    expect(cmd.run_options.match).to_equal('AV')
+
+    execute(':AH a b c')
+    expect(cmd.run_options.match).to_equal('AH')
+
+    execute(':A a b c')
+    expect(cmd.run_options.match).to_equal('A')
+
+    execute(':Alternate a b c')
+    expect(cmd.run_options.match).to_equal('Alternate')
+
+    self.registry.remove(cmd)
+  end
+
+  defm it_provides_the_range_to_the_executed_command
+    cmd = new MockCommand()
+    cmd.name = 'Alternate'
+    cmd.range = true
+    self.registry.add(cmd)
+
+    execute(':Alternate a b c')
+    expect(cmd.run_options).to_not_have_key('range')
+
+    execute(":1,1Alternate a b c")
+    expect(cmd.run_options.range).to_equal([1, 1])
+
+    self.registry.remove(cmd)
+  end
+end
+
+class CommandRegistryCommandCompletionSpec
+  defm describe
+    return 'Execution of Commands inside CommandRegistry'
+  end
+
+  defm before_each
+    self.registry = new CommandRegistry()
+  end
+
+  defm after_each
+    self.registry.remove_all()
+    :unlet self.registry
+  end
+
+  defm it_sends_word_and_cursor_to_complete_function
+    cmd = new MockCommand()
+    cmd.completer = 'customlist'
+    cmd.complete_with = ['app', 'apple']
+    self.registry.add(cmd)
+
+    self.registry.complete_command(cmd.get_command_id(), 'MockCommand', 'word', 'MockCommand', 10)
+    expect(cmd.complete_args).to_equal(['word', 'MockCommand', 10])
+  end
+
+  defm it_returns_complete_list
+    cmd = new MockCommand()
+    registry = self.registry
+    cmd.completer = 'customlist'
+    cmd.complete_with = ['app', 'apple']
+    registry.add(cmd)
+
+    result = registry.complete_command(cmd.get_command_id(), 'MockCommand', 'word', 'MockCommand', 10)
+    expect(cmd.complete_args).to_equal(['word', 'MockCommand', 10])
+    expect(result).to_equal(['app', 'apple'])
+  end
+end
+
+class CommandWithCountSpec
+  defm it_can_run_command_with_count
+    cmd = new MockCommand()
+    cmd.count = true
+    cmd.name = 'Countable'
+
+    registry = new CommandRegistry()
+    registry.add(cmd)
+
+    execute(':Countable')
+    expect(cmd.run_options.count).to_equal(0)
+
+    execute(':2Countable')
+    expect(cmd.run_options.count).to_equal(2)
+  end
+end
+
+class CommandRegistrationInRegistrySpec
+  defm describe
+    return 'Command Registration inside Registration'
+  end
+
+  defm before_each
+    self.registry = new CommandRegistry()
+  end
+
+  defm after_each
+    self.registry.remove_all()
+    :unlet self.registry
+  end
+
+  defm it_does_not_register_if_auto_register_is_false_focus
+    cmd = new MockCommand()
+    cmd.auto_register = false
+    self.registry.add(cmd)
+
+    expect(exists(':MockCommand')).to_be_false()
+  end
+
+  defm it_does_register_if_auto_register_is_true
+    cmd = new MockCommand()
+    cmd.auto_register = true
+    self.registry.add(cmd)
+
+    expect(exists(':MockCommand')).to_not_equal(0)
+  end
+
+  defm it_can_register_a_command_manually
+    cmd = new MockCommand()
+    cmd.auto_register = false
+    self.registry.add(cmd)
+
+    expect(exists(':MockCommand')).to_be_false()
+    self.registry.register_command(cmd.get_command_id())
+    expect(exists(':MockCommand')).to_not_equal(0)
+  end
+
+  defm it_can_register_multiple_commands_manually
+    cmds = []
+    for i in range(0, 5)
+      cmd = new MockCommand()
+      cmd.auto_register = true
+      cmd.name = "MockCommand#{i}"
+      self.registry.add(cmd)
+      add(cmds, cmd)
+      expect(exists(":MockCommand#{i}")).to_be_false()
+    end
+
+    self.registry.register_commands()
+
+    for cmd in cmds
+      expect(exists(":#{cmd.get_name()}")).to_equal(2)
+    end
+  end
+end
+
+class CommandRegistryUnregistrationSpec
+  defm it_can_remove_added_ex_commands
+    r = new CommandRegistry()
+    ca = new MockCommand()
+    ca.name = 'MyCmdA'
+    ca.ex_mode = true
+    ca.ctrlp_mode = true
+    ca.ctrlp_aliases = ['MyCmdA']
+
+    cb = new MockCommand()
+    cb.name = 'MyCmdB'
+    cb.ex_mode = true
+    cb.ctrlp_mode = true
+    cb.ctrlp_aliases = ['MyCmdB']
+
+    r.add(ca)
+    r.add(cb)
+
+    expect(exists(':MyCmdA')).to_equal(2)
+    expect(exists(':CtrlPMyCmdA')).to_equal(2)
+    expect(exists(':MyCmdB')).to_equal(2)
+    expect(exists(':CtrlPMyCmdB')).to_equal(2)
+
+    r.unregister()
+
+    expect(exists(':MyCmdA')).to_be_false()
+    expect(exists(':CtrlPMyCmdA')).to_be_false()
+    expect(exists(':MyCmdB')).to_be_false()
+    expect(exists(':CtrlPMyCmdB')).to_be_false()
+
+    " can still run the command manually
+    r.run_action('MyCmdA', 'foo', 'bar')
+    expect(ca.run_args).to_equal(['foo', 'bar'])
+  end
+end
+
+class ActionExecutionInCommandRegistrySpec
+  defm describe
+    return 'Execution of Actions in CommandRegistry'
+  end
+
+  defm before_each
+    self.registry = new CommandRegistry()
+  end
+
+  defm after_each
+    self.registry.remove_all()
+    :unlet self.registry
+  end
+
+  defm it_does_not_have_action_initially
+    expect(self.registry.has_action('MockCommand')).to_be_false()
+  end
+
+  defm it_has_actions_from_command_registration
+    cmd = new MockCommand()
+    self.registry.add(cmd)
+    expect(self.registry.has_action('MockCommand')).to_be_true()
+  end
+
+  defm it_can_run_action_command
+    cmd = new MockCommand()
+    cmd.name = 'Foo'
+    cmd.auto_register = false
+    self.registry.add(cmd)
+
+    result = self.registry.run_action('Foo', 'a', 'b', 'c')
+    expect(cmd.run_args).to_equal(['a', 'b', 'c'])
+    expect(result).to_equal(['a', 'b', 'c'])
+  end
+end
+
+class CtrlPDelegateSpec
+  defm describe
+    return 'CtrlPDelegateSpec'
+  end
+
+  defm get_agent()
+    return self
+  end
+
+  defm show()
+    expect(self.command_id).to_equal('foo')
+    expect(self.resource_type).to_equal('bar')
+  end
+
+  defm set_command(id, name)
+    self.command_id = id
+    self.resource_type = name
+  end
+
+  defm set_name(name)
+    self.name = name
+  end
+
+  defm get_display_name(id, cmd_name)
+    return 'MyDisplayName'
+  end
+
+  defm it_sets_command_id_before_show
+    delegate = new CtrlPDelegate(self, self)
+    delegate.invoke('foo', 'bar')
+
+    expect(self.name).to_equal('MyDisplayName')
+  end
+end
+
+class MockRegistry
+  defm complete_command(id, name, word, cmd_line, cursor)
+    return [id, name, word, cmd_line, cursor]
+  end
+
+  defm run_command(id, name, args, opts)
+    return [id, name, opts, args]
+  end
+end
+
+class CtrlPAgentSpec
+  defm describe
+    return 'CtrlPAgentSpec'
+  end
+
+  defm it_uses_complete_command_of_registry_for_init
+    registry = new MockRegistry()
+    agent = new CtrlPAgent(registry)
+    agent.set_command('1', 'MockCommand')
+    result = agent.init()
+
+    expect(result).to_equal(['1', 'MockCommand', '', 'MockCommand', 0])
+  end
+
+  defm it_uses_run_command_of_registry_for_accept
+    registry = new MockRegistry()
+    agent = new CtrlPAgent(registry)
+    agent.set_command('1', 'MockCommand')
+    result = agent.accept('e', 'lorem')
+
+    expect(result).to_equal(['1', 'MockCommand', {'mode':'e'}, ['lorem']])
+  end
+
+end

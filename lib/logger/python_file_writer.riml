@@ -1,0 +1,44 @@
+class PythonFileWriter
+  def initialize(sys_path, output_file)
+    self.output_file = output_file
+
+    execute(":python import sys")
+    execute(":python sys.path.append('#{sys_path}')")
+    execute(":python from scripts.file_writer import FileWriter")
+    execute(":python file_writer = FileWriter('#{output_file}')")
+  end
+
+  defm write(line)
+    execute(':python file_writer.write("' . escape(line, '"') . '")')
+  end
+
+  defm writeln(line)
+    execute(':python file_writer.writeln("' . escape(line, '"') . '")')
+  end
+
+  defm flush
+    execute(':python file_writer.flush()')
+    execute(':python file_writer.close()')
+  end
+
+  defm flush_line()
+    unless self.current_line == ''
+      add(self.lines, self.current_line)
+      self.current_line = ''
+    end
+  end
+
+  defm flush()
+    self.flush_line()
+    writefile(self.lines, self.output_file)
+  end
+
+  defm setup_exit_hooks
+    delegate = new_delegate(self, 'flush')
+    :augroup file_writer_group
+      :autocmd!
+      execute(":autocmd VimLeavePre * :call #{delegate}()")
+    :augroup END
+  end
+
+end

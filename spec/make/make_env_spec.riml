@@ -1,0 +1,101 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'make_env.riml'
+
+class MakeEnvSpec
+  defm describe
+    return 'MakeEnvSpec'
+  end
+
+  defm before
+    self.cwd = getcwd()
+  end
+
+  defm after
+    execute(":chdir #{self.cwd}")
+  end
+
+  defm it_can_snapshot_current_make_env_from_defaults
+    env = new MakeEnv()
+    expect(env.get_makeprg()).to_not_equal('')
+    expect(env.get_errorformat()).to_not_equal('')
+
+    " works: but disabled due to haslocaldir
+    "expect(env.has_local_dir()).to_be_false()
+    expect(env.get_dir()).to_not_equal('')
+  end
+
+  defm it_can_snapshot_current_make_env_from_context
+    &makeprg = 'foo'
+    &errorformat = 'bar'
+    execute(":cd #{self.cwd}/spec")
+
+    env = new MakeEnv()
+    expect(env.get_makeprg()).to_equal('foo')
+    expect(env.get_errorformat()).to_equal('bar')
+
+    execute(":cd #{self.cwd}/../")
+  end
+
+  defm it_can_detect_absence_of_localdir
+    env = new MakeEnv()
+    " works: but disabled due to haslocaldir
+    "expect(env.has_local_dir()).to_be_false()"
+  end
+
+  defm it_can_detect_presence_of_localdir
+    execute(":lcd #{self.cwd}/spec")
+    env = new MakeEnv()
+    expect(env.has_local_dir()).to_be_true()
+
+    execute(":lcd #{self.cwd}/../")
+  end
+
+  defm it_can_detect_absence_of_compiler
+    if exists('b:current_compiler')
+      :unlet b:current_compiler
+    end
+
+    env = new MakeEnv()
+    expect(env.has_compiler()).to_be_false()
+  end
+
+  defm it_can_detect_presence_of_compiler
+    b:current_compiler = 'foo'
+
+    env = new MakeEnv()
+    expect(env.has_compiler()).to_be_true()
+    expect(env.get_compiler()).to_equal('foo')
+  end
+
+  defm it_can_restore_env_to_default
+    env = new MakeEnv()
+    env.restore()
+
+    expect(env.get_makeprg()).to_not_equal('')
+    expect(env.get_errorformat()).to_not_equal('')
+    expect(env.has_local_dir()).to_be_false()
+    expect(env.get_dir()).to_not_equal('')
+  end
+
+  defm it_can_restore_env_to_previous
+    &makeprg = 'foo'
+    &errorformat = 'bar'
+    execute(":cd #{self.cwd}")
+    b:current_compiler = 'foo-compile'
+
+    env = new MakeEnv()
+
+    &makeprg = 'bar'
+    &errorformat = 'barerr'
+    execute(":cd #{self.cwd}/spec/projects")
+    b:current_compiler = 'bar-compile'
+
+    env.restore()
+
+    expect(&makeprg).to_equal('foo')
+    expect(&errorformat).to_equal('bar')
+    expect(getcwd()).to_equal(self.cwd)
+    expect(b:current_compiler).to_equal('foo-compile')
+  end
+end

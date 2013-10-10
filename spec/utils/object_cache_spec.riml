@@ -1,0 +1,65 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'object_cache.riml'
+
+class ObjectCacheSpec
+  defm describe
+    return 'ObjectCacheSpec'
+  end
+
+  defm it_does_not_have_item_cached_initially
+    cache = new ObjectCache()
+    expect(cache.has('foo')).to_be_false()
+  end
+
+  defm it_can_store_single_object
+    cache = new ObjectCache()
+    cache.put('lorem', { 'value': 10 })
+
+    expect(cache.get('lorem').value).to_equal(10)
+  end
+
+  defm it_can_store_list_of_objects
+    cache = new ObjectCache()
+    cache.add('lipsum', 'lorem')
+    cache.add('lipsum', 'ipsum')
+    cache.add('lipsum', 'dolor')
+    cache.add('lipsum', 'sit')
+    cache.add('lipsum', 'amet')
+
+    result = cache.get('lipsum')
+    expect(result).to_equal(['lorem', 'ipsum', 'dolor', 'sit', 'amet'])
+  end
+
+  defm it_can_remove_object
+    cache = new ObjectCache()
+    cache.put('lorem', { 'value': 10 })
+    cache.remove('lorem')
+
+    expect(cache.has('lorem')).to_be_false()
+  end
+
+  defm it_can_remove_objects_matching_pattern
+    cache = new ObjectCache()
+    cache.put('apple', 1)
+    cache.put('apricot', 1)
+    cache.put('banana', 1)
+
+    cache.clear('^a')
+    expect(cache.has('apple')).to_be_false()
+    expect(cache.has('apricot')).to_be_false()
+    expect(cache.has('banana')).to_be_true()
+  end
+
+  defm it_can_remove_all_objects
+    cache = new ObjectCache()
+    cache.put('apple', 1)
+    cache.put('apricot', 1)
+    cache.put('banana', 1)
+    cache.clear_all()
+
+    expect(cache.has('apple')).to_be_false()
+    expect(cache.has('apricot')).to_be_false()
+    expect(cache.has('banana')).to_be_false()
+  end
+end

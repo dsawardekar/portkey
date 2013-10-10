@@ -1,0 +1,15 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'string_helpers.riml'
+
+class StringHelpersSpec
+  defm describe
+    return 'StringHelpersSpec'
+  end
+
+  defm it_can_split_template_into_lines
+    template = "FooClass < SomeClass\nend"
+    lines = str_to_lines(template)
+    expect(lines).to_equal(['FooClass < SomeClass', 'end'])
+  end
+end

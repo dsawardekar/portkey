@@ -1,0 +1,46 @@
+class ProjectionTemplate
+  def initialize(original)
+    self.original = original
+    self.compiled = { 'is_template': false }
+    self.error = ''
+  end
+
+  defm get_original
+    return self.original
+  end
+
+  defm get_compiled
+    return self.compiled
+  end
+
+  defm has_error
+    return self.error != ''
+  end
+
+  defm get_error
+    return self.error
+  end
+
+  defm compile(lexer, compiler)
+    try
+      self.error = ''
+      tokens = lexer.scan(self.original)
+      self.compiled = compiler.compile(tokens)
+    catch /.*/
+      self.error = "Error: Template expansion failed.\n\n" . v:exception
+    end
+  end
+
+  defm render(context)
+    if self.is_compiled()
+      return self.compiled.render(context)
+    else
+      return self.error
+    end
+  end
+
+  defm is_compiled
+    return has_key(self.compiled, 'is_template') && self.compiled.is_template
+  end
+end
+

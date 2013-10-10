@@ -1,0 +1,32 @@
+class SyntaxLoader
+  def initialize
+    self.syntaxes = {}
+  end
+
+  defm register(resource_type, file)
+    self.syntaxes[resource_type] = file
+  end
+
+  defm get_syntax(resource_type)
+    return self.syntaxes[resource_type]
+  end
+
+  defm has_syntax(resource_type)
+    return has_key(self.syntaxes, resource_type)
+  end
+
+  defm load(resource_type)
+    if self.has_syntax(resource_type)
+      path = self.get_syntax(resource_type)
+      execute(":runtime! #{path}")
+    end
+  end
+
+  defm load_by_pattern(filepath)
+    for [pattern, syntax_file] in items(self.syntaxes)
+      if match(filepath, "\v#{pattern}$") >= 0
+        execute(":runtime! #{syntax_file}")
+      end
+    end
+  end
+end

@@ -1,0 +1,22 @@
+class GetFileFinderContext < FinderContext
+  defm get_query_type(options)
+    return 'file'
+  end
+
+  defm get_template_context(options)
+    name_fragment = options.get_filename()
+    buffer = self.get_current_buffer()
+    projections = self.get_current_projections()
+    patterns = projections.get_patterns('asc')
+
+    data_frame = new GetFileDataFrame(buffer)
+    data_frame.set_pattern_list(patterns)
+    data_frame.set_source(name_fragment)
+    data_frame.set_source_path(buffer.get_rel_path())
+    data_frame.set_inflector(self.lookup('inflector'))
+    data_frame.set_projection(self.get_current_projection())
+
+    template_context = new TemplateContext(data_frame)
+    return template_context
+  end
+end

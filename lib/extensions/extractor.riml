@@ -1,0 +1,11 @@
+class Extractor
+  defm match(context)
+    return false
+  end
+
+  defm change_source(lines, mode, range)
+  end
+
+  defm change_destination(lines, mode, range)
+  end
+end

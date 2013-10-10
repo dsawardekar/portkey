@@ -1,0 +1,74 @@
+riml_include 'dsl.riml'
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'projection_template.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+
+class MockContext
+  defm lookup(key)
+    return self[key]
+  end
+end
+
+class ProjectionTemplateSpec
+  defm describe
+    return 'ProjectionTemplateSpec'
+  end
+
+  defm before
+    self.lexer = new Lexer()
+    self.compiler = new Compiler()
+    self.compiler.filter_factory = {}
+  end
+
+  defm after
+    :unlet self.lexer
+    :unlet self.compiler
+  end
+
+  defm it_has_original_template
+    template = new ProjectionTemplate('app/models/%s.rb')
+    expect(template.get_original()).to_equal('app/models/%s.rb')
+  end
+
+  defm it_can_compile_valid_template
+    template = new ProjectionTemplate('app/models/%s.rb')
+    template.compile(self.lexer, self.compiler)
+
+    expect(template.has_error()).to_be_false()
+  end
+
+  defm it_does_not_compile_invalid_template
+    template = new ProjectionTemplate('app/models/%{}s.rb')
+    template.compile(self.lexer, self.compiler)
+
+    expect(template.has_error()).to_be_true()
+  end
+
+  defm it_can_render_valid_template
+    template = new ProjectionTemplate('app/models/%s.rb')
+    template.compile(self.lexer, self.compiler)
+
+    context = new MockContext()
+    context.source = 'foo'
+    result = template.render(context)
+
+    expect(result).to_equal('app/models/foo.rb')
+  end
+
+  defm it_renders_invalid_template_with_error_message
+    template = new ProjectionTemplate('app/models/%{}.rb')
+    template.compile(self.lexer, self.compiler)
+
+    context = new MockContext()
+    context.source = 'foo'
+    result = template.render(context)
+
+    expect(result).to_match('LexicalError')
+  end
+end

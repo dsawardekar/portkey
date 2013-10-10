@@ -1,0 +1,182 @@
+class Lexer
+  def initialize
+  end
+
+  " navigation
+  defm next()
+    if self.pos >= self.length
+      self.width = 0
+      return 'EOF'
+    end
+
+    rune = self.input[self.pos]
+
+    " TODO: figure out how viml does unicode
+    self.width = 1
+    self.pos += self.width
+
+    return rune
+  end
+
+  defm backup()
+    self.pos -= self.width
+  end
+
+  defm peek()
+    rune = self.next()
+    self.backup()
+
+    return rune
+  end
+
+  defm ignore()
+    self.start = self.pos
+  end
+
+  defm ignore_whitespace()
+    if self.is_whitespace(self.peek())
+      self.accept_run(s:charsWhitespace)
+      if self.is_ahead()
+        self.start = self.pos
+      end
+    end
+  end
+
+  defm advance()
+    self.next()
+    self.ignore()
+  end
+
+  " consumers
+  defm accept(valid)
+    rune = self.next()
+    index = stridx(valid, rune)
+
+    if index >= 0
+      return true
+    else
+      self.backup()
+      return false
+    end
+  end
+
+  defm accept_run(valid)
+    while self.accept(valid)
+    end
+  end
+
+  defm accept_keyword()
+    self.accept_run(s:charsKeyword)
+  end
+
+  " token generation
+  defm emit(token_type)
+    token_value = strpart(self.input, self.start, self.pos - self.start)
+    token = new Token(token_type, token_value)
+
+    add(self.stream, token)
+
+    self.start = self.pos
+  end
+
+  defm emit_text()
+    if self.is_ahead()
+      if self.was_text_last_emitted()
+          token_value = strpart(self.input, self.start, self.pos - self.start)
+          last_token = self.stream[-1]
+          last_token.value = last_token.value . token_value
+          self.start = self.pos
+      else
+        self.emit(s:itemText)
+      end
+    end
+  end
+
+  defm was_text_last_emitted
+    if len(self.stream) > 0
+      last_token = self.stream[-1]
+      return last_token.type == s:itemText
+    else
+      return false
+    end
+  end
+
+  " public api
+  defm scan(input)
+    self.input = input
+    self.start = 0
+    self.pos = 0
+    self.width = 0
+    self.length = len(input)
+    self.stream = []
+    self.last_token = { 'type': -1 }
+
+    self.run()
+
+    return self.stream
+  end
+
+  " run loop
+  defm run
+    state = get_lex_state('LexText')
+    while self.is_state(state)
+      state_name = state.scan(self)
+      state = get_lex_state(state_name)
+    end
+  end
+
+  defm is_state(state)
+    return !has_key(state, 'is_null')
+  end
+
+  " misc helpers
+  defm is_ahead()
+    return self.pos > self.start
+  end
+
+  defm is_whitespace(char)
+    return char == ' ' || char == "\t"
+  end
+
+  defm error(msg)
+    str = strpart(self.input, 0, self.pos + 5)
+    msg = "LexicalError: #{msg} for input: '#{str}'"
+
+    throw msg
+  end
+
+  defm print_cursor()
+    cursors = ''
+    index = 0
+    while index < self.length
+      if index == self.start && index == self.pos
+        cursors .= 'V'
+      elseif self.start == index
+        cursors .= '|'
+      elseif self.pos == index
+        cursors .= 'v'
+      else
+        cursors .= ' '
+      end
+
+      index += 1
+    end
+
+    if self.pos >= self.length
+      cursors .= 'v'
+    end
+
+    info(cursors)
+    info(self.input)
+  end
+
+  defm print_stream
+    i = 0
+    for token in self.stream
+      info("#{i}: Token(#{get_token_name(token.type)}, '#{token.value}')")
+      i += 1
+    end
+  end
+
+end
+

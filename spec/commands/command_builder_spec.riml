@@ -1,0 +1,153 @@
+riml_include 'dsl.riml'
+riml_include 'command_builder.riml'
+riml_include 'base_command.riml'
+riml_include 'log_helpers.riml'
+
+class CommandBuiderSpec
+  defm describe
+    return 'CommandBuiderSpec'
+  end
+
+  defm before_each
+    self.builder = new CommandBuilder()
+    self.builder.name('Foo')
+    self.builder.repr(':echo "Foo"')
+  end
+
+  defm after_each
+    :unlet self.builder
+  end
+
+  defm it_has_name
+    cmd = self.builder.build()
+    expect(cmd).to_match('Foo')
+  end
+
+  defm it_removes_underscore_from_name_f
+    b = new CommandBuilder()
+    b.name('My_Custom_Command')
+    cmd = b.build()
+
+    expect(cmd).to_not_match('My_Custom_Command')
+    expect(cmd).to_match('MyCustomCommand')
+  end
+
+  defm it_has_repr
+    cmd = self.builder.build()
+    expect(cmd).to_match(':echo "Foo"')
+  end
+
+  defm it_adds_boolean_option_if_present
+    self.builder.option('bang', true)
+    cmd = self.builder.build()
+    expect(cmd).to_match('-bang')
+  end
+
+  defm it_does_not_add_boolean_option_if_false
+    self.builder.option('bang', false)
+    cmd = self.builder.build()
+    expect(cmd).to_not_match('-bang')
+  end
+
+  defm it_adds_non_boolean_option_with_value
+    self.builder.option('nargs', '*')
+    cmd = self.builder.build()
+    expect(cmd).to_match("nargs=\*")
+  end
+
+  defm it_can_build_command_with_count_c
+    opts = {}
+    opts.range = false
+    opts.count = true
+
+    b = self.builder
+    b.options(opts)
+    b.name('MyCmd')
+    b.repr(":echo 'my_cmd'")
+
+    r = b.build()
+    expect(r).to_match('-count')
+  end
+
+  defm it_can_build_complex_command1
+    opts = {}
+    opts.bang = true
+    opts.bar = false
+    opts.buffer = true
+    opts.nargs = '*'
+    opts.range = true
+
+    b = self.builder
+    b.options(opts)
+    b.name('PrintWorkingDir')
+    b.repr(':pwd')
+
+    cmd = b.build()
+    expect(cmd).to_match('-bang')
+    expect(cmd).to_not_match('-bar')
+    expect(cmd).to_match('-buffer')
+    expect(cmd).to_match("-nargs=\*")
+    expect(cmd).to_match('PrintWorkingDir')
+    expect(cmd).to_match(':pwd')
+    expect(cmd).to_match('-range')
+  end
+
+  defm run_complex_command(value)
+    self.complex_command_result = value
+  end
+
+  defm it_can_run_complex_command
+    opts = {}
+    opts.bang = true
+    opts.bar = false
+    opts.buffer = true
+    opts.nargs = '*'
+
+    b = self.builder
+    b.options(opts)
+    b.name('RunComplexCommand')
+    b.repr(':call s:cmd_builder_spec.run_complex_command("foo")')
+
+    cmd = b.build()
+    execute(cmd)
+
+    s:cmd_builder_spec = self
+    execute(":RunComplexCommand")
+
+    expect(self.complex_command_result).to_equal('foo')
+    :delcommand RunComplexCommand
+  end
+
+end
+
+class MyCustomCommand < BaseCommand
+  defm get_name
+    return 'MyCustomCommand'
+  end
+
+  defm run(args)
+    self.run_result = args
+  end
+end
+
+class CommandBuilderWithCommandSpec
+  defm describe
+    return 'Command built from Command object'
+  end
+
+  defm it_can_run_command_built_from_a_command_object
+    cmd = new MyCustomCommand()
+    builder = new CommandBuilder()
+    builder.name(cmd.get_name())
+    builder.repr(':call s:command_builder_cmd.run(["a", "b", "c"])')
+    builder.options(cmd.get_options())
+
+    excmd = builder.build()
+    execute(excmd)
+
+    s:command_builder_cmd = cmd
+    execute(':MyCustomCommand')
+
+    expect(cmd.run_result).to_equal(['a', 'b', 'c'])
+  end
+end

@@ -1,0 +1,38 @@
+class Token
+  def initialize(type, value)
+    self.type = type
+    self.value = value
+  end
+end
+
+def load_token_types()
+  token_types = []
+
+  add(token_types, 'itemError')
+  add(token_types, 'itemModifier')
+  add(token_types, 'itemPlaceholder')
+  add(token_types, 'itemWhitespace')
+  add(token_types, 'itemFilter')
+  add(token_types, 'itemText')
+  add(token_types, 'itemTab')
+  add(token_types, 'itemNewline')
+  add(token_types, 'itemEOF')
+
+  i = 0
+  for token_type in token_types
+    execute("let s:#{token_type} = #{i}")
+    i += 1
+  end
+
+  :let s:token_types = token_types
+end
+
+def get_token_name(index)
+  return s:token_types[index]
+end
+
+def get_token_id(name)
+  return index(s:token_types, name)
+end
+
+load_token_types()

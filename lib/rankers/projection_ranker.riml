@@ -1,0 +1,29 @@
+class ProjectionRanker
+  defm rank(context, rank_items)
+    buffer = context.lookup('buffer')
+    context_root = buffer.get_abs_root()
+    rootname = buffer.get_rootname()
+
+    for rank_item in rank_items
+      rank_item_path = rank_item.get_path()
+      rank_item_rootname = self.get_rootname(rank_item_path)
+      match_result = match(rootname, rank_item_rootname)
+
+      " if rank_item folds into rootname, rank based on length of that match
+      if match_result >= 0
+        rank_item.raise(len(rank_item_rootname))
+      end
+
+      " existing files get an even higher ranking
+      if filereadable(context_root . rank_item_path)
+        rank_item.raise(1000)
+      end
+    end
+
+    return true
+  end
+
+  defm get_rootname(path)
+    return fnamemodify(path, ':t:r')
+  end
+end

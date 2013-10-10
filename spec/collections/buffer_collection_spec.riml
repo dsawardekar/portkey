@@ -1,0 +1,29 @@
+riml_include 'dsl.riml'
+riml_include 'buffer.riml'
+riml_include 'buffer_collection.riml'
+
+class BufferCollectionSpec
+  defm describe
+    return 'BufferCollectionSpec'
+  end
+
+  defm before_each
+    self.store = new BufferCollection()
+  end
+
+  defm after_each
+    :unlet self.store
+  end
+
+  defm it_does_not_have_buffer_initially
+    expect(self.store.has_current()).to_be_false()
+  end
+
+  defm it_can_store_buffers
+    buffer = new Buffer('foo')
+
+    self.store.set_current(buffer)
+    expect(self.store.get_current()).to_equal(buffer)
+    expect(self.store.has_current()).to_be_true()
+  end
+end

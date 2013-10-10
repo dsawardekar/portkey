@@ -1,0 +1,104 @@
+if exists('g:portkey_plugin_loaded')
+  finish
+end
+
+riml_include 'buffer.riml'
+riml_include 'autocmd_loader.riml'
+
+class Plugin
+  defm get_app()
+    if !self.loaded()
+      self.app = portkey#app()
+    end
+
+    return self.app
+  end
+
+  defm loaded()
+    return has_key(self, 'app')
+  end
+
+  defm start()
+    loader = new AutocmdLoader()
+    loader.set_group_name('portkey_plugin_group')
+
+    loader.cmd("BufNewFile,BufRead * call s:plugin.on_buffer_open(expand('<afile>'))")
+    loader.cmd("BufEnter * call s:plugin.on_buffer_enter(expand('<afile>'))")
+    loader.cmd("BufLeave * call s:plugin.on_buffer_leave(expand('<afile>'))")
+    loader.cmd("VimEnter * call s:plugin.on_vim_enter()")
+
+    loader.load()
+  end
+
+  defm on_buffer_open(path)
+    if type(path) == type('string')
+      buffer = new Buffer(path)
+    else
+      buffer = path
+    end
+
+    if buffer.has_root()
+      unless self.loaded()
+        :redraw
+        echomsg "Portkey: Loading (#{buffer.get_portkey_display_path()}) ..."
+      end
+
+      b:portkey_buffer = buffer
+      self.get_app().on_buffer_open(buffer)
+    end
+  end
+
+  defm on_buffer_enter(path)
+    if exists('b:portkey_buffer')
+      buffer = b:portkey_buffer
+      app = self.get_app()
+
+      unless buffer.get_configured()
+        app.on_buffer_open(buffer)
+      end
+
+      app.on_buffer_enter(buffer)
+    end
+  end
+
+  defm on_buffer_leave(path)
+    if exists('b:portkey_buffer')
+      self.get_app().on_buffer_leave(b:portkey_buffer)
+    end
+  end
+
+  " if $ vim without args inside a portkey enabled project
+  " we'll autostart start the app
+  defm on_vim_enter()
+    if self.can_autostart()
+      " pseudo buffer, portkey.json is not actually loaded into a vim buffer
+      buffer = new Buffer("portkey.json")
+      self.on_buffer_open(buffer)
+      self.on_buffer_enter(buffer)
+    end
+  end
+
+  defm can_autostart
+    if !self.loaded() && argc() == 0 && exists('g:portkey_autostart') && g:portkey_autostart && self.has_portkey_json()
+      return true
+    else
+      return false
+    end
+  end
+
+  defm has_portkey_json
+    portkey_path = fnamemodify('portkey.json', ':p')
+    return filereadable(portkey_path)
+  end
+
+end
+
+def main()
+  s:plugin = new Plugin()
+  s:plugin.start()
+  g:portkey_plugin_loaded = true
+end
+
+if !exists('g:speckle_mode')
+  main()
+end

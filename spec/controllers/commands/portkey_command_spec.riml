@@ -1,0 +1,97 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class MockCommandRegistry
+  defm run_action(*args)
+    self.run_action_args = args
+    return args
+  end
+end
+
+class PortkeyCommandSpec
+  defm describe
+    return 'PortkeyCommandSpec'
+  end
+
+  defm it_can_store_container
+    cmd = new PortkeyCommand({ 'is_container': true })
+    expect(cmd.container.is_container).to_be_true()
+  end
+
+  defm it_can_run_actions
+    container = new Container({})
+    container.register('registry', 'MockCommandRegistry', true)
+    container.register('buffers', 'BufferCollection', true)
+
+    registry = container.lookup('registry')
+
+    cmd = new PortkeyCommand(container)
+    cmd.process('DoFoo', 'a', 'b', 'c')
+
+    expect(registry.run_action_args).to_equal(['DoFoo', 'a', 'b', 'c'])
+  end
+
+  defm it_uses_context_container_when_available
+    container = new Container({})
+    container.register('buffers', 'BufferCollection', true)
+    container.register('contexts', 'ContextCollection', true)
+    container.register('extensions', 'ExtensionCollection', true)
+    container.register('context', 'Context', true)
+    container.register('foo', 'MockFoo', true)
+
+    foo = container.lookup('foo')
+    foo.changed = true
+
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    buffer.find_root()
+
+    buffers = container.lookup('buffers')
+    buffers.set_current(buffer)
+
+    contexts = container.lookup('contexts')
+    contexts.add(buffer.get_abs_root())
+
+    context = container.lookup('context')
+
+    cmd = new PortkeyCommand(container)
+    cmd_foo = cmd.lookup('foo')
+
+    expect(cmd_foo).to_equal(foo)
+  end
+
+  defm it_can_lookup_env_variables
+    container = new Container({})
+    container.register('env', 'Environment', true)
+    container.register('buffers', 'BufferCollection', true)
+    container.register('contexts', 'ContextCollection', true)
+    container.register('extensions', 'ExtensionCollection', true)
+    container.register('context', 'Context', true)
+
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    buffer.find_root()
+
+    buffers = container.lookup('buffers')
+    buffers.set_current(buffer)
+
+    contexts = container.lookup('contexts')
+    contexts.add(buffer.get_abs_root())
+
+
+    env = container.lookup('env')
+    cmd = new PortkeyCommand(container)
+
+    expect(cmd.get_env_var('adaptive_mappings')).to_equal(true)
+
+    g:portkey_adaptive_mappings = 'custom'
+    env.load_options()
+    expect(cmd.get_env_var('adaptive_mappings')).to_equal('custom')
+  end
+end
+
+class MockFoo
+  def initialize
+    self.is_foo = true
+  end
+end

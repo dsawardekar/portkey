@@ -1,0 +1,534 @@
+class Context
+  defm needs
+    return ['extensions']
+  end
+
+  defm on_inject
+    self.container = c = self.container.child()
+
+    " singletons
+    c.register('finder', 'Finder', true)
+    c.register('ranker', 'Ranker', true)
+    c.register('projector', 'Projector', true)
+    c.register('lexer', 'Lexer', true)
+    c.register('compiler', 'Compiler', true)
+
+    c.register('completer', 'Completer', true)
+    c.register('finder_facade', 'FinderFacade', true)
+    c.register('syntax_loader', 'SyntaxLoader', true)
+    c.register('filter_factory', 'FilterFactory', true)
+    c.register('inflector', 'Inflector', true)
+    c.register('autocmd_loader', 'AutocmdLoader', true)
+    c.register('extractors', 'ExtractorCollection', true)
+    c.register('globber', 'Globber', true)
+
+    " finder contexts
+    c.register('alternate_finder_context', 'AlternateFinderContext', true)
+    c.register('related_finder_context', 'RelatedFinderContext', true)
+    c.register('resource_finder_context', 'ResourceFinderContext', true)
+    c.register('get_file_finder_context', 'GetFileFinderContext', true)
+    c.register('test_finder_context', 'TestFinderContext', true)
+
+    c.register('launcher', 'Launcher', true)
+
+    " strategies
+    c.register('pick_file_strategy', 'PickFileStrategy', true)
+    c.register('first_file_strategy', 'FirstFileStrategy', true)
+    c.register('nth_file_strategy', 'NthFileStrategy', true)
+    c.register('new_resource_strategy', 'NewResourceStrategy', true)
+    c.register('test_file_strategy', 'TestFileStrategy', true)
+
+    " get file strategies
+    c.register('get_file_strategy', 'GetFileStrategy', true)
+    c.register('strip_ext_strategy', 'StripExtStrategy', true)
+    c.register('underscorize_strategy', 'UnderscorizeStrategy', true)
+    c.register('camelize_strategy', 'CamelizeStrategy', true)
+    c.register('affinize_strategy', 'AffinizeStrategy', true)
+
+    " non-singletons
+    c.register('projections', 'ProjectionCollection', true)
+
+    " registering self as a context object
+    " so any child requesting context gets this instance instead of
+    " a new Context from the parent container
+    c.register('context', self)
+
+    " misc
+    c.register('make', 'Make', true)
+  end
+
+  defm get_root()
+    return self.root
+  end
+
+  defm get_root_portkey()
+    return "#{self.root}portkey.json"
+  end
+
+  defm add_portkey(file)
+    add(self.portkeys, file)
+  end
+
+  defm add_extension(extension_name)
+    add(self.extension_names, extension_name)
+  end
+
+  defm get_portkeys()
+    return self.portkeys
+  end
+
+  defm load(root)
+    self.root = root
+    self.portkeys = []
+    self.extension_names = []
+
+    collector = new PortkeyCollector(self, self.lookup('projections'))
+    loader = new PortkeyLoader(self.extensions)
+    loader.load(self.get_root_portkey(), collector)
+
+    self.load_extensions()
+
+    return !loader.has_errors()
+  end
+
+  defm load_config(json, path, scope)
+    for [key, value] in items(json)
+      if key == 'inflections'
+        loader = new InflectionLoader()
+        inflector = self.lookup('inflector')
+        loader.load(value, inflector)
+      end
+    end
+  end
+
+  defm load_extensions
+    extensions = self.extensions
+
+    " core needs to be loaded before others
+    self.load_extension_by_name('core')
+
+    for extension_name in self.extension_names
+      self.load_extension_by_name(extension_name)
+    end
+  end
+
+  defm load_extension_by_name(extension_name)
+    extensions = self.extensions
+
+    if extensions.has_extension(extension_name)
+      extension = extensions.get_extension(extension_name)
+      self.load_extension(extension)
+    end
+  end
+
+  defm load_extension(extension)
+    self.container.inject(extension)
+
+    self.load_finders(extension)
+    self.load_rankers(extension)
+    self.load_inflections(extension)
+    self.load_filters(extension)
+    self.load_syntax_files(extension)
+    self.load_extractors(extension)
+  end
+
+  defm load_syntax_files(extension)
+    syntax_files = extension.get_syntax_files()
+    unless type(syntax_files) == type({})
+      return
+    end
+
+    syntax_loader = self.lookup('syntax_loader')
+
+    for syntax_file_type in keys(syntax_files)
+      syntax_file = syntax_files[syntax_file_type]
+      syntax_loader.register(syntax_file_type, syntax_file)
+    end
+  end
+
+  defm load_filters(extension)
+    filters = extension.get_filters()
+    unless type(filters) == type({})
+      return
+    end
+
+    filter_factory = self.lookup('filter_factory')
+
+    for filter_name in keys(filters)
+      filter = filters[filter_name]
+      filter_factory.add_filter(filter_name, filter)
+    end
+  end
+
+  defm load_inflections(extension)
+    inflector = self.lookup('inflector')
+    extension.configure_inflector(inflector)
+  end
+
+  defm load_rankers(extension)
+    ranker = self.lookup('ranker')
+    self.load_ranker(extension, 'projection', ranker)
+    self.load_ranker(extension, 'resource', ranker)
+    self.load_ranker(extension, 'file', ranker)
+  end
+
+  defm load_ranker(extension, type, ranker)
+    r = extension.get_ranker(type)
+    if type(r) == type({})
+      self.inject(r)
+      ranker.add_ranker(type, r)
+    end
+  end
+
+  defm load_finders(extension)
+    finder = self.lookup('finder')
+    self.load_finder(extension, 'projection', finder)
+    self.load_finder(extension, 'resource', finder)
+    self.load_finder(extension, 'file', finder)
+  end
+
+  defm load_finder(extension, type, finder)
+    f = extension.get_finder(type)
+    if type(f) == type({})
+      self.inject(f)
+      finder.add_finder(type, f)
+    end
+  end
+
+  defm load_extractors(extension)
+    ext_extractors = extension.get_extractors()
+    extractors = self.lookup('extractors')
+
+    for extractor in ext_extractors
+      self.inject(extractor)
+      extractors.add_extractor(extractor)
+    end
+  end
+
+  defm lookup(name)
+    if name == 'context'
+      " children looking up context get this context
+      return self
+    else
+      return self.container.lookup(name)
+    end
+  end
+
+  defm get_projections()
+    return self.lookup('projections')
+  end
+
+  defm get_extension_names()
+    return self.extension_names
+  end
+
+  defm inject(object)
+    if has_key(self, 'container') && has_key(self.container, 'inject')
+      self.container.inject(object)
+    end
+  end
+
+end
+
+class PortkeyLoader
+  def initialize(extensions)
+    self.parser = new JSONParser()
+    self.loaded_paths = {}
+    self.is_portkey_loader = true
+    self.extensions = extensions
+    self.errors = false
+    self.root_loaded = false
+  end
+
+  defm load(pathname, collector)
+    unless has_key(self, 'root_pathname')
+      self.root_pathname = pathname
+    end
+
+    portkey_path = self.resolve_path(pathname)
+    if portkey_path.is_custom
+      return
+    end
+
+    unless portkey_path.is_portkey_path
+      self.show_error('Cannot load portkey', pathname)
+      return
+    end
+
+    path = portkey_path.get_filepath()
+    json = self.load_and_parse(path)
+
+    if self.is_json(json)
+      self.loaded_paths[path] = true
+      collector.add(json, path, self.get_scope(pathname))
+      if portkey_path.is_extension()
+        collector.add_extension(portkey_path.get_extension_name())
+      else
+        self.root_loaded = true
+      end
+
+      if self.has_children(json)
+        self.load_children(json, collector)
+      end
+    end
+  end
+
+  defm load_children(json, collector)
+    children = json['portkeys']
+    for child in children
+      self.load(child, collector)
+    end
+  end
+
+  defm load_and_parse(path)
+    try
+      if type(path) == type('')
+        lines = readfile(path)
+        text = join(lines, ' ')
+
+        return self.parse(text, path)
+      elseif !self.is_extension_name(path)
+        self.show_error('Invalid portkey path', path)
+      end
+    catch /.*/
+      self.show_error('Failed to load json', path)
+      return false
+    end
+  end
+
+  defm parse(text, path)
+    json = self.parser.parse(text)
+
+    if self.is_json(json)
+      return json
+    else
+      self.show_error('Failed to parse json', path)
+      return 0
+    end
+  end
+
+  defm resolve_path(pathname)
+    portkey_path = new PortkeyPath(pathname)
+
+    if portkey_path.is_extension()
+      " for extensions we need to lookup the portkey path
+      extension_path = self.lookup_extension_path(portkey_path)
+      if extension_path != 'null'
+        portkey_path.set_filepath(extension_path)
+        return portkey_path
+      else
+        return { 'is_portkey_path': false, 'pathname': pathname, 'is_custom': true }
+      end
+    elseif filereadable(portkey_path.get_filepath())
+      if self.root_pathname == pathname
+        " we'll load core extensions in the same way
+        " Note: core is a reserved word, plugins can't use core as a plugin name
+        self.send_extension_event('core')
+      end
+      return portkey_path
+    else
+      return { 'pathname': pathname, 'is_portkey_path': false, 'is_custom': false }
+    end
+  end
+
+  defm lookup_extension_path(portkey_path)
+    extension_name = portkey_path.get_extension_name()
+    self.send_extension_event(extension_name)
+
+    " at this point we should have an extension registered "
+    if self.extensions.has_extension(extension_name)
+      extension = self.extensions.get_extension(extension_name)
+      parts = portkey_path.get_extension_name_parts()
+
+      filepath = extension.get_portkey_path(parts.type, parts.variant)
+      if filepath != 'null'
+        return filepath
+      else
+        return 'null'
+      end
+    else
+      echo_warn("Extension not found: #{portkey_path.get_extension_name()}")
+      return 'null'
+    end
+  end
+
+  defm send_extension_event(extension_name)
+    unless self.extensions.has_extension(extension_name)
+      event_name = self.get_event_name(extension_name)
+
+      " the plugin should be listening for portkey_extension_{name}
+      execute(":silent! doautocmd User #{event_name}")
+    end
+  end
+
+  defm get_event_name(extension_name)
+    return 'portkey_extension_' . tolower(extension_name)
+  end
+
+  defm show_error(msg, path)
+    ""info(v:exception)
+    ""info(msg)
+    rel_path = fnamemodify(path, ':.')
+    echo_warn("#{msg}: #{rel_path}")
+    self.errors = true
+  end
+
+  defm has_errors
+    return self.errors
+  end
+
+  defm has_root_loaded
+    return self.root_loaded
+  end
+
+  defm is_json(json)
+    return type(json) == type({})
+  end
+
+  defm has_children(json)
+    return has_key(json, 'portkeys') && type(json.portkeys) == type([])
+  end
+
+  defm is_extension_name(path)
+    return path !~ '.json$'
+  end
+
+  defm get_scope(pathname)
+    if self.is_extension_name(pathname) && self.extensions.has_extension(pathname)
+      return self.extensions.get_extension(pathname).get_scope()
+    else
+      return 'global'
+    end
+  end
+end
+
+class PortkeyPath
+  def initialize(pathname)
+    self.pathname = pathname
+    self.is_portkey_path = true
+    self.is_ext = false
+    self.is_custom = false
+  end
+
+  defm get_pathname
+    return self.pathname
+  end
+
+  defm build_extension_name
+    " TODO: is this basic check sufficient?
+    if self.pathname !~ '.json$'
+      self.extension_name_parts = self.get_name_parts(self.pathname)
+      self.extension_name = self.extension_name_parts.name
+
+      self.filepath = ''
+      self.is_ext = true
+    else
+      self.filepath = self.pathname
+      self.is_ext = false
+    end
+  end
+
+  defm is_extension
+    unless has_key(self, 'filepath')
+      self.build_extension_name()
+    end
+
+    return self.is_ext
+  end
+
+  defm get_extension_name
+    unless has_key(self, 'filepath')
+      self.build_extension_name()
+    end
+
+    return self.extension_name
+  end
+
+  defm set_filepath(filepath)
+    self.filepath = filepath
+  end
+
+  defm get_filepath
+    return self.filepath
+  end
+
+  defm get_extension_name_parts
+    return self.extension_name_parts
+  end
+
+  defm get_name_parts(extension_name)
+    parts = {}
+    eparts = split(extension_name, ':')
+    n = len(eparts)
+
+    if n == 2
+      parts.name = eparts[0]
+      vparts = split(eparts[1], '-')
+      m = len(vparts)
+
+      if m == 2
+        " ember:classic-js
+        parts.type = vparts[0]
+        parts.variant = vparts[1]
+      else
+        " ember:classic
+        parts.type = vparts[0]
+        parts.variant = ''
+      end
+    else
+      " ember
+      parts.name = eparts[0]
+      parts.type = ''
+      parts.variant = ''
+    end
+
+    return parts
+  end
+
+end
+
+class PortkeyCollector
+  def initialize(context, projections)
+    self.context = context
+    self.projections = projections
+  end
+
+  defm add(json, path, scope)
+    for [key, value] in items(json)
+      if key == 'config'
+        self.context.load_config(value, path, scope)
+      elseif key != 'portkeys'
+        if has_key(value, 'type')
+          " preferred
+          resource_type = value['type']
+        elseif has_key(value, 'command')
+          " compatibility with vim-rails projection json
+          resource_type = value['command']
+        else
+          " resource_type must be provided to the projection_collection
+          " if it isn't provided we mark it as 'unknown'
+          resource_type = 'unknown'
+        end
+
+        " for the projection loader to know the current pattern
+        value['pattern'] = key
+
+        " default scoped to extension
+        unless has_key(value, 'scope')
+          value['scope'] = scope
+        end
+
+        self.projections.add(resource_type, value)
+      end
+
+      " workaround for the type mismatch
+      :unlet value
+    end
+
+    self.context.add_portkey(path)
+  end
+
+  defm add_extension(extension_name)
+    self.context.add_extension(extension_name)
+  end
+end

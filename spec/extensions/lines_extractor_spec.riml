@@ -1,0 +1,78 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'lines_extractor.riml'
+
+class LinesExtractorSpec
+  " these tests run inside a temporary split
+  defm before_each
+    :sp lines_extractor
+  end
+
+  defm after_each
+    :q!
+  end
+
+  defm it_can_be_created_f
+    e = new LinesExtractor()
+    expect(e.is_lines_extractor).to_be_true()
+  end
+
+  defm it_can_delete_lines_in_source
+    total_lines = line('$')
+    for index in range(total_lines, total_lines + 4)
+      cmd = ":call setline(#{index}, 'line#{index}')"
+      execute(cmd)
+    end
+
+    e = new LinesExtractor()
+    e.change_source(total_lines, total_lines+4, {})
+
+    expect(line('$')).to_equal(total_lines)
+    :silent! u1|u
+  end
+
+  defm it_can_put_lines_into_destination
+    total_lines = line('$')
+    lines = []
+
+    for index in range(total_lines, total_lines + 4)
+      add(lines, 'line' . index)
+    end
+
+    e = new LinesExtractor()
+    opts = new MockOptions()
+    opts.append_mode = false
+    e.change_destination(lines, opts)
+
+    ""expect(line('$')).to_equal(total_lines + 4)
+    :silent! u1|u
+  end
+
+  defm it_can_append_lines_to_destination
+    for index in range(1, 5)
+      cmd = ":call setline(#{index}, 'initial line#{index}')"
+      execute(cmd)
+    end
+
+    total_lines = line('$')
+    lines = []
+
+    for index in range(total_lines, total_lines + 4)
+      add(lines, 'line' . index)
+    end
+
+    e = new LinesExtractor()
+    opts = new MockOptions()
+    opts.append_mode = true
+    e.change_destination(lines, opts)
+
+    ""expect(line('$')).to_equal(total_lines + 5)
+    :silent! u1|u
+  end
+end
+
+class MockOptions
+  defm get_append_mode
+    return self.append_mode
+  end
+end

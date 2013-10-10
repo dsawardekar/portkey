@@ -1,0 +1,123 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'make_env.riml'
+riml_include 'make.riml'
+
+class MakeSpec
+  defm describe
+    return 'MakeSpec'
+  end
+
+  defm before
+    self.cwd = getcwd()
+  end
+
+  defm after
+    execute(":chdir #{self.cwd}")
+  end
+
+  defm it_can_be_created
+    make = new Make()
+  end
+
+  defm it_can_store_bang
+    make = new Make()
+    make.set_bang(true)
+    expect(make.get_bang()).to_be_true()
+
+    make.set_bang(false)
+    expect(make.get_bang()).to_be_false()
+  end
+
+  defm it_can_store_quickmode
+    make = new Make()
+    expect(make.get_show_quickfix()).to_be_true()
+    
+    make.set_show_quickfix(false)
+    expect(make.get_show_quickfix()).to_be_false()
+  end
+
+  defm it_can_store_mocked
+    make = new Make()
+    expect(make.get_mocked()).to_be_false()
+
+    make.set_mocked(true)
+    expect(make.get_mocked()).to_be_true()
+  end
+
+  defm it_can_store_compiler
+    make = new Make()
+    make.set_compiler('foo')
+    expect(make.get_compiler()).to_equal('foo')
+  end
+
+  defm it_can_store_makeprg
+    make = new Make()
+    make.set_makeprg('rspec')
+    expect(make.get_makeprg()).to_equal('rspec')
+  end
+
+  defm it_can_store_errorformat
+    make = new Make()
+    make.set_errorformat('err')
+    expect(make.get_errorformat()).to_equal('err')
+  end
+
+  defm it_can_compute_make_cmd_if_Make_is_present
+    execute(":command! Make :echo 'mock'")
+    make = new Make()
+    expect(make.get_make_cmd()).to_match('^Make')
+    :delcommand Make
+  end
+
+  defm it_can_compute_make_cmd_if_Make_is_absent
+    make = new Make()
+    expect(make.get_make_cmd()).to_match('^make')
+  end
+
+  defm it_can_load_compiler_env
+    unless filereadable("#{$VIMRUNTIME}/compiler/gcc.vim")
+      return
+    end
+
+    make = new Make()
+    make.set_compiler('gcc')
+    make.load_env()
+
+    expect(exists('b:current_compiler')).to_equal(1)
+    expect(b:current_compiler).to_equal('gcc')
+  end
+
+  defm it_can_load_makeprg_env
+    make = new Make()
+    make.set_makeprg('foo')
+    make.set_errorformat('bar')
+    make.load_env()
+
+    expect(&makeprg).to_equal('foo')
+    expect(&errorformat).to_equal('bar')
+  end
+
+  defm it_can_restore_env_after_run
+    b:current_compiler = 'make'
+
+    make = new Make()
+    make.set_mocked(true)
+    make.set_compiler('rspec')
+
+    make.make()
+
+    c = make.get_exec_cmd()
+    expect(b:current_compiler).to_equal('make')
+  end
+
+  defm it_can_run_make_with_args
+    make = new Make()
+    make.set_mocked(true)
+    make.set_compiler('rspec')
+    make.make('%')
+
+    c = make.get_exec_cmd()
+    expect(c).to_match('%')
+  end
+end

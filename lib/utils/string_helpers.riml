@@ -1,0 +1,4 @@
+" misc string helpers
+def str_to_lines(str)
+  return split(str, "\n")
+end

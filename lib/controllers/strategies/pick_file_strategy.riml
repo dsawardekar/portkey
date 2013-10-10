@@ -1,0 +1,17 @@
+class PickFileStrategy
+  defm needs
+    return ['finder_facade']
+  end
+
+  defm get_launchable(finder_context, options)
+    query_type = finder_context.get_query_type(options)
+    filename = options.get_filename()
+
+    if filename != ''
+      template_context = finder_context.get_template_context(options)
+      return self.finder_facade.pick(query_type, template_context, filename)
+    else
+      return ''
+    end
+  end
+end

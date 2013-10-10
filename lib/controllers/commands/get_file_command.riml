@@ -1,0 +1,53 @@
+class GetFileCommand < SwitchFileCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'GetFile'
+  end
+
+  defm has_ex_mode
+    return false
+  end
+
+  defm has_ctrlp_mode
+    return false
+  end
+
+  defm get_finder_context
+    return 'get_file_finder_context'
+  end
+
+  defm get_launcher_strategies
+    s = []
+    add(s, 'get_file_strategy')
+    add(s, 'strip_ext_strategy')
+    add(s, 'underscorize_strategy')
+    add(s, 'camelize_strategy')
+    add(s, 'affinize_strategy')
+
+    return s
+  end
+
+  defm launch(strategies, finder_context, options)
+    launcher = self.lookup('launcher')
+    launchable = launcher.run(strategies, finder_context, options)
+
+    if launchable.is_launchable
+      return self.to_rel_path(launchable.get_filepath())
+    else
+      " original filename if not launchable
+      " allows find based searching to proceed after this
+      return options.get_args()[0]
+    end
+  end
+
+  defm to_rel_path(filepath)
+    root = self.get_current_root()
+    abs_path = root . filepath
+    rel_path = fnamemodify(abs_path, ':.')
+    return rel_path
+  end
+end
+

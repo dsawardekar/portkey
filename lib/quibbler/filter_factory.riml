@@ -1,0 +1,53 @@
+class BaseFilterFactory
+  def initialize
+    self.filters = {}
+  end
+
+  defm needs
+    return ['inflector']
+  end
+
+  defm has_filter(name)
+    return has_key(self.filters, name)
+  end
+
+  defm add_filter(name, filter)
+    self.filters[name] = filter
+    self.configure_filter(filter)
+  end
+
+  defm get_filter(name)
+    return self.filters[name]
+  end
+
+  defm configure_filter(filter)
+    if has_key(self, 'inflector') && has_key(filter, 'set_inflector')
+      filter.set_inflector(self.inflector)
+    end
+  end
+end
+
+class FilterFactory < BaseFilterFactory
+  def initialize
+    super()
+  end
+
+  defm on_inject
+    self.load_defaults()
+  end
+
+  defm load_defaults
+    self.add_filter('upper', new UppercaseFilter())
+    self.add_filter('lower', new LowercaseFilter())
+    self.add_filter('plural', new PluralFilter())
+    self.add_filter('singular', new SingularFilter())
+    self.add_filter('camel', new CamelcaseFilter())
+    self.add_filter('lcamel', new LowerCamelcaseFilter())
+    self.add_filter('underscore', new UnderscoreFilter())
+    self.add_filter('human', new HumanFilter())
+    self.add_filter('dash', new DashFilter())
+    self.add_filter('title', new TitleFilter())
+    self.add_filter('table', new TableFilter())
+    self.add_filter('class', new ClassFilter())
+  end
+end

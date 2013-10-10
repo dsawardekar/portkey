@@ -1,0 +1,2 @@
+describe AuthorsController do
+end

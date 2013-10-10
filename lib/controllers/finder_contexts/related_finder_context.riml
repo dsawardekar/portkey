@@ -1,0 +1,24 @@
+class RelatedFinderContext < FinderContext
+  defm get_query_type(options)
+    return 'projection'
+  end
+
+  defm get_template_context(options)
+    buffer = self.get_current_buffer()
+    match = buffer.get_match()
+
+    pattern = match.get_pattern()
+    projection = pattern.get_projection()
+    source_name = match.get_source()
+
+    data_frame = new ProjectionDataFrame(buffer)
+    data_frame.set_projection(projection, 'related')
+    data_frame.set_source(source_name)
+    data_frame.set_source_path(buffer.get_rel_path())
+    data_frame.set_pattern(pattern)
+
+    template_context = new TemplateContext(data_frame)
+
+    return template_context
+  end
+end

@@ -1,0 +1,176 @@
+s:projection_id_counter = 0
+
+def next_projection_id()
+  s:projection_id_counter += 1
+  return s:projection_id_counter
+end
+
+class Projection
+  def initialize(resource_type)
+    self.is_projection = true
+    self.revision = 0
+    self.id = next_projection_id()
+
+    projection_templates = {}
+    projection_templates['alternate'] = []
+    projection_templates['related'] = []
+    projection_templates['test'] = []
+
+    self.projection_templates = projection_templates
+
+    self.keywords = []
+    self.patterns = []
+
+    self.resource_type = resource_type
+    self.affinity = 'null'
+    self.mapping = 'null'
+    self.compiler = 'null'
+    self.scope = 'null'
+  end
+
+  defm get_revision()
+    return self.revision
+  end
+
+  defm bump_revision()
+    self.revision += 1
+  end
+
+  defm get_id()
+    return self.id
+  end
+
+  defm get_hash()
+    return "#{self.id}-#{self.revision}"
+  end
+
+  defm has_pattern(pattern)
+    for p in self.patterns
+      if p.get_original() == pattern
+        return true
+      end
+    end
+
+    return false
+  end
+
+  defm add_pattern(pattern)
+    pattern_obj = new ProjectionPattern(pattern, self)
+    add(self.patterns, pattern_obj)
+
+    return pattern_obj
+  end
+
+  defm get_patterns
+    return self.patterns
+  end
+
+  defm match(filename)
+    patterns = copy(self.patterns)
+    sort(patterns, self.get_compare_func())
+    for pattern in patterns
+      expansion = pattern.swap(filename)
+      if match(expansion, filename) >= 0
+        return expansion
+      end
+    end
+
+    return ''
+  end
+
+  defm get_compare_func()
+    matcher = new ProjectionMatcher({})
+    CompareFunc = create_delegate(matcher, 'compare_patterns')
+    return CompareFunc
+  end
+
+  defm has_projection_template(projection_type, template_str)
+    templates = self.get_projection_templates(projection_type)
+    for template in templates
+      if template.get_original() == template_str
+        return true
+      end
+    end
+
+    return false
+  end
+
+  defm get_projection_templates(projection_type)
+    return self.projection_templates[projection_type]
+  end
+
+  defm add_projection_template(projection_type, *args)
+    templates = self.get_projection_templates(projection_type)
+    changed = false
+
+    for template in args
+      unless self.has_projection_template(projection_type, template)
+        add(templates, new ProjectionTemplate(template))
+        changed = true
+      end
+    end
+
+    return changed
+  end
+
+  defm get_resource_type()
+    return self.resource_type
+  end
+
+  defm has_keyword(keyword)
+    return index(self.keywords, keyword) >= 0
+  end
+
+  defm add_keyword(keyword)
+    add(self.keywords, keyword)
+  end
+
+  defm get_keyword_list()
+    return self.keywords
+  end
+
+  defm set_affinity(affinity)
+    self.affinity = affinity
+  end
+
+  defm get_affinity()
+    return self.affinity
+  end
+
+  defm get_mapping()
+    return self.mapping
+  end
+
+  defm set_mapping(mapping)
+    self.mapping = mapping
+  end
+
+  defm has_mapping()
+    return has_key(self, 'mapping') && self.mapping != 'null'
+  end
+
+  defm get_compiler
+    return self.compiler
+  end
+
+  defm set_compiler(compiler)
+    self.compiler = compiler
+  end
+
+  defm has_compiler
+    return has_key(self, 'compiler') && self.compiler != 'null'
+  end
+
+  defm get_scope
+    return self.scope
+  end
+
+  defm set_scope(scope)
+    self.scope = scope
+  end
+
+  defm has_scope
+    return has_key(self, 'scope') && self.scope != 'null'
+  end
+
+end

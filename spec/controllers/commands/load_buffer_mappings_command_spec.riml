@@ -1,0 +1,35 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class LoadBufferMappingsCommandSpec
+  defm describe
+    return 'LoadBufferMappingsCommandSpec'
+  end
+
+  defm before_each
+    self.driver = new AppDriver()
+  end
+
+  defm after_each
+    :unlet self.driver
+  end
+
+  defm it_can_change_current_buffer_on_enter
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer('spec/projects/basic/foo.rb')
+    b.find_root()
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " must have changed current buffer
+    buffer_collection = d.lookup('buffers')
+    expect(buffer_collection.get_current()).to_equal(b)
+  end
+end

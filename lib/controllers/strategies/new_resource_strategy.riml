@@ -1,0 +1,56 @@
+class NewResourceStrategy
+  defm needs
+    return ['finder_facade']
+  end
+
+  defm get_launchable(finder_context, options)
+    filename = options.get_filename()
+    resource_type = options.get_resource_type()
+
+    " need filename and resource_type to figure out
+    " what file to create
+    if filename == ''
+      buffers = self.lookup('buffers')
+      buffer = buffers.get_current()
+
+      " for :Efoo inside a buffer without a projection
+      if buffer.has_projection()
+        filename = buffer.get_source()
+      end
+    end
+
+    if filename != ''
+      filename = fnamemodify(filename, ':r')
+      container = self.container
+      projections = self.container.lookup('projections')
+      projection = projections.find_by_resource_type(resource_type)
+      affinity = projection.get_affinity()
+      filename = self.affinize(filename, affinity)
+
+      return projection.match(filename)
+    else
+      " :Efoo inside a buffer without a projection has nothing to base
+      " it's guess on so we'll just open the first resource found
+      query_type = finder_context.get_query_type(options)
+      template_context = finder_context.get_template_context(options)
+
+      return self.finder_facade.first(query_type, template_context)
+    end
+  end
+
+  defm lookup(name)
+    return self.container.lookup(name)
+  end
+
+  defm affinize(name, affinity)
+    " only affinize if affinity is provided
+    " Allows :Econtroller post => post_controller by default
+    " With affinity of controller, would be posts_controller
+    if affinity != '' && affinity != 'null'
+      inflector = self.container.lookup('inflector')
+      return inflector.affinize(name, affinity)
+    else
+      return name
+    end
+  end
+end

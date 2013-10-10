@@ -1,0 +1,63 @@
+class FinderContext
+  " KLUDGE: duplicates PortkeyCommand helpers
+  defm lookup(name)
+    return self.container.lookup(name)
+  end
+
+  defm buffer_has_projection
+    return self.get_current_buffer().has_projection()
+  end
+
+  defm buffer_has_context
+    return self.get_current_contexts().contains(self.get_current_root())
+  end
+
+  defm buffer_has_enrolled
+    return self.get_current_buffer().get_enrolled()
+  end
+
+  " methods below are helpers of the form get_current_foo
+  defm get_current_buffer
+    return self.lookup('buffers').get_current()
+  end
+
+  defm get_current_buffer_path
+    return self.get_current_buffer().get_rel_path()
+  end
+
+  defm get_current_buffer_filename
+    return self.get_current_buffer().get_filename()
+  end
+
+  defm get_current_buffer_rootname
+    return self.get_current_buffer().get_rootname()
+  end
+
+  defm get_current_contexts
+    return self.lookup('contexts')
+  end
+
+  defm get_current_context
+    return self.get_current_contexts().get(self.get_current_root())
+  end
+
+  defm get_current_root
+    return self.get_current_buffer().get_abs_root()
+  end
+
+  defm get_current_projection
+    return self.get_current_buffer().get_projection()
+  end
+
+  defm get_current_projections
+    return self.get_current_context().get_projections()
+  end
+
+  defm get_current_pattern
+    return self.get_current_buffer().get_pattern()
+  end
+
+  defm get_current_resource_type
+    return self.get_current_projection().get_resource_type()
+  end
+end

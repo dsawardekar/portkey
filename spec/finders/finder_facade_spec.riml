@@ -1,0 +1,172 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'object_cache.riml'
+riml_include 'delegate.riml'
+riml_include 'finder_facade.riml'
+riml_include 'finder.riml'
+riml_include 'ranker.riml'
+riml_include 'finder_matcher.riml'
+
+class MockFinder
+  def initialize(name)
+    self.name = name
+    self.result = true
+  end
+
+  defm find(context, collector)
+    collector.add(self.name)
+    return true
+  end
+end
+
+class MockRanker
+  def initialize(rankings)
+    self.rankings = rankings
+  end
+
+  defm rank(context, results)
+    i = 0
+    for r in results
+      r.set_ranking(self.rankings[i])
+      i += 1
+    end
+  end
+end
+
+class FinderFacadeSpec
+  defm describe
+    return 'FinderFacadeSpec'
+  end
+
+  defm it_can_find_and_rank_results
+    finder = new Finder()
+    finder.add_finder('projection', new MockFinder('app/models/post.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/comment.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/author.rb'))
+
+    ranker = new Ranker()
+    ranker.add_ranker('projection', new MockRanker([0, 1, 2]))
+
+    matcher = new FinderMatcher()
+
+    facade = new FinderFacade()
+    facade.finder = finder
+    facade.ranker = ranker
+    facade.matcher = matcher
+
+    results = facade.find('projection', {})
+
+    expect(results).to_equal(['post', 'comment', 'author'])
+  end
+
+  defm it_can_pick_match_from_filename
+    finder = new Finder()
+    finder.add_finder('projection', new MockFinder('app/models/post.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/comment.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/author.rb'))
+
+    ranker = new Ranker()
+    ranker.add_ranker('projection', new MockRanker([0, 1, 0]))
+
+    matcher = new FinderMatcher()
+
+    facade = new FinderFacade()
+    facade.finder = finder
+    facade.ranker = ranker
+    facade.matcher = matcher
+    result = facade.pick('projection', {}, 'author')
+
+    expect(result).to_equal('app/models/author.rb')
+  end
+
+  defm it_can_pick_first_match
+    finder = new Finder()
+    finder.add_finder('projection', new MockFinder('app/models/post.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/comment.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/author.rb'))
+
+    ranker = new Ranker()
+    ranker.add_ranker('projection', new MockRanker([0, 1, 0]))
+
+    matcher = new FinderMatcher()
+
+    facade = new FinderFacade()
+    facade.finder = finder
+    facade.ranker = ranker
+    facade.matcher = matcher
+    result = facade.first('projection', {})
+
+    expect(result).to_equal('app/models/comment.rb')
+  end
+
+  defm it_can_pick_nth_match
+    finder = new Finder()
+    finder.add_finder('projection', new MockFinder('app/models/post.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/comment.rb'))
+    finder.add_finder('projection', new MockFinder('app/models/author.rb'))
+
+    ranker = new Ranker()
+    ranker.add_ranker('projection', new MockRanker([0, 0, 0]))
+
+    matcher = new FinderMatcher()
+
+    facade = new FinderFacade()
+    facade.finder = finder
+    facade.ranker = ranker
+    facade.matcher = matcher
+
+    result = facade.nth('projection', {}, 1)
+    expect(result).to_equal('app/models/author.rb')
+
+    result = facade.nth('projection', {}, 2)
+    expect(result).to_equal('app/models/comment.rb')
+
+    result = facade.nth('projection', {}, 3)
+    expect(result).to_equal('app/models/post.rb')
+
+    result = facade.nth('projection', {}, 4)
+    expect(result).to_equal('')
+  end
+end
+
+class FinderFacadePickPerfSpec
+  defm describe
+    return 'FinderFacadePickPerfSpec'
+  end
+
+  defm before
+    finder = new Finder()
+    ranker = new Ranker()
+    rankings = []
+
+    for i in range(1, 100)
+      finder.add_finder('projection', new MockFinder("app/models/post#{i}.rb"))
+      add(rankings, i)
+    end
+
+    for i in range(1, 10)
+      ranker.add_ranker('projection', new MockRanker(rankings))
+    end
+
+    matcher = new FinderMatcher()
+
+    self.facade = new FinderFacade()
+    self.facade.finder = finder
+    self.facade.ranker = ranker
+    self.facade.matcher = matcher
+  end
+
+  " ~20ms for 100 finders with 10 rankers
+  " decent performance
+  " globbing will add overhead, which additional caching should be
+  " able to mitigate.
+  " The facade itself is fast enough
+  defm it_can_pick_a_match_quickly_perf
+    unless exists('g:speckle_tag') && g:speckle_tag == 'perf'
+      return
+    end
+
+    result = self.facade.pick('projection', {}, 'post100')
+    expect(result).to_equal('app/models/post100.rb')
+  end
+end

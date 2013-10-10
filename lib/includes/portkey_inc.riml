@@ -1,0 +1,142 @@
+" utils
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'string_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'json_parser.riml'
+riml_include 'object_cache.riml'
+riml_include 'memoizer.riml'
+riml_include 'file_opener.riml'
+riml_include 'buffer_opener.riml'
+
+" inflector
+riml_include 'inflector.riml'
+riml_include 'inflections.riml'
+
+" 3rd party integration
+riml_include 'ctrlp_extension.riml'
+
+" trie
+riml_include 'trie.riml'
+
+" container
+riml_include 'container.riml'
+
+" quibbler
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+riml_include 'template_context.riml'
+
+" base command api
+riml_include 'base_command.riml'
+riml_include 'command_builder.riml'
+riml_include 'command_registry.riml'
+riml_include 'autocmd_loader.riml'
+
+" models
+riml_include 'environment.riml'
+riml_include 'projection_template.riml'
+riml_include 'projection_pattern.riml'
+riml_include 'projection_match.riml'
+riml_include 'projection.riml'
+riml_include 'projection_collection.riml'
+riml_include 'projector.riml'
+riml_include 'buffer.riml'
+riml_include 'buffer_collection.riml'
+riml_include 'context.riml'
+riml_include 'context_collection.riml'
+
+" rankers
+riml_include 'ranker.riml'
+riml_include 'projection_ranker.riml'
+
+" finders
+riml_include 'globber.riml'
+riml_include 'data_frame.riml'
+riml_include 'finder.riml'
+riml_include 'finder_matcher.riml'
+riml_include 'projection_finder.riml'
+riml_include 'resource_finder.riml'
+riml_include 'file_finder.riml'
+riml_include 'finder_facade.riml'
+
+" mappers
+riml_include 'map_builder.riml'
+riml_include 'map_loader.riml'
+
+" syntax
+riml_include 'syntax_loader.riml'
+
+" make
+riml_include 'make_env.riml'
+riml_include 'make.riml'
+
+" completers
+riml_include 'command_options.riml'
+riml_include 'completer.riml'
+
+" finder contexts
+riml_include 'finder_context.riml'
+riml_include 'alternate_finder_context.riml'
+riml_include 'resource_finder_context.riml'
+riml_include 'related_finder_context.riml'
+riml_include 'test_finder_context.riml'
+riml_include 'get_file_finder_context.riml'
+
+" extractors
+riml_include 'extractor.riml'
+riml_include 'extractor_collection.riml'
+riml_include 'lines_extractor.riml'
+
+" extensions
+riml_include 'extension.riml'
+riml_include 'extension_collection.riml'
+riml_include 'core_extension.riml'
+
+" launcher
+riml_include 'launchable_collection.riml'
+riml_include 'launcher.riml'
+
+" strategies
+riml_include 'pick_file_strategy.riml'
+riml_include 'first_file_strategy.riml'
+riml_include 'nth_file_strategy.riml'
+riml_include 'new_resource_strategy.riml'
+riml_include 'test_file_strategy.riml'
+riml_include 'get_file_strategy.riml'
+
+" portkey commands
+riml_include 'portkey_command.riml'
+riml_include 'configure_buffer_command.riml'
+riml_include 'load_buffer_mappings_command.riml'
+riml_include 'load_buffer_ex_cmds_command.riml'
+riml_include 'load_get_file_command.riml'
+riml_include 'load_syntax_command.riml'
+riml_include 'show_version_command.riml'
+riml_include 'change_current_buffer_command.riml'
+riml_include 'load_extension_command.riml'
+riml_include 'portkey_refresh_command.riml'
+riml_include 'portkey_mappings_command.riml'
+riml_include 'open_portkey_command.riml'
+
+riml_include 'switch_file_command.riml'
+riml_include 'alternate_file_command.riml'
+riml_include 'related_file_command.riml'
+riml_include 'resource_file_command.riml'
+riml_include 'get_file_command.riml'
+riml_include 'portkey_runner_command.riml'
+
+" controller
+riml_include 'controller.riml'
+
+" app
+riml_include 'app.riml'
+
+" version
+riml_include 'version.riml'
+

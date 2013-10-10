@@ -1,0 +1,26 @@
+class AlternateFileCommand < SwitchFileCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'Alternate'
+  end
+
+  defm get_count
+    return true
+  end
+
+  defm get_aliases
+    return ['AE', 'AS', 'AV', 'AT', 'AD', 'A']
+  end
+
+  defm get_launcher_strategies
+    return ['pick_file_strategy', 'nth_file_strategy']
+  end
+
+  defm get_finder_context
+    return 'alternate_finder_context'
+  end
+
+end

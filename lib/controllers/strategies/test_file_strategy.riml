@@ -1,0 +1,38 @@
+class TestFileStrategy
+  defm needs
+    return ['finder_facade']
+  end
+
+  defm lookup(name)
+    return self.container.lookup(name)
+  end
+
+  defm get_launchable(finder_context, options)
+    buffers = self.lookup('buffers')
+    current_buffer = buffers.get_current()
+    projection = current_buffer.get_projection()
+
+    " can't run without a compiler
+    unless projection.has_compiler()
+      return ''
+    end
+
+    resource_type = projection.get_resource_type()
+
+    if self.is_test(resource_type)
+      test_file = current_buffer.get_rel_path()
+    else
+      query_type = finder_context.get_query_type(options)
+      template_context = finder_context.get_template_context(options)
+      test_file = self.finder_facade.first(query_type, template_context)
+    end
+
+    return test_file
+  end
+
+  " resource_types ending with test or spec are considered tests
+  " :Run uses the current file if is_test else the projected test
+  defm is_test(resource_type)
+    return resource_type =~ 'test$' || resource_type =~ 'spec$'
+  end
+end

@@ -1,0 +1,23 @@
+class FileNameMatcher
+  defm match(expected, actual)
+    for file in actual
+      if file =~ expected
+        return true
+      end
+    end
+
+    return false
+  end
+
+  defm failure_message_for_match(expected, actual)
+    return "expected #{string(actual)} to have file #{expected}"
+  end
+
+  defm failure_message_for_mismatch(expected, actual)
+    return "expected #{string(actual)} to not have file #{expected}"
+  end
+end
+
+matcher = new FileNameMatcher()
+define_matcher('to_have_file', 'to_not_have_file', matcher)
+

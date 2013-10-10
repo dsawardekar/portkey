@@ -1,0 +1,76 @@
+class ObjectCache
+  def initialize
+    self.cache = {}
+    self.hits = 0
+    self.misses = 0
+  end
+
+  defm has(key)
+    return has_key(self.cache, key)
+  end
+
+  defm add(key, value)
+    unless self.has(key)
+      self.cache[key] = []
+    end
+
+    list = self.cache[key]
+    add(list, value)
+    self.misses += 1
+  end
+
+  defm insert(key, value)
+    unless self.has(key)
+      self.cache[key] = []
+    end
+
+    list = self.cache[key]
+    insert(list, value)
+    self.misses += 1
+  end
+
+  defm put(key, value)
+    self.cache[key] = value
+    self.misses += 1
+  end
+
+  defm get(key)
+    self.hits += 1
+    return self.cache[key]
+  end
+
+  defm remove(key)
+    if self.has(key)
+      :unlet self.cache[a:key]
+    end
+  end
+
+  defm clear(*args)
+    if len(args) == 1
+      pattern = args[0]
+    else
+      return self.clear_all()
+    end
+
+    for key in keys(self.cache)
+      if key =~ pattern
+        :unlet self.cache[key]
+      end
+    end
+  end
+
+  defm clear_all()
+    :unlet self.cache
+    self.cache = {}
+    self.hits = 0
+    self.misses = 0
+  end
+
+  defm get_hits()
+    return self.hits
+  end
+
+  defm get_misses()
+    return self.misses
+  end
+end

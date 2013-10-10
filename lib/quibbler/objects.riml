@@ -1,0 +1,90 @@
+class TemplateObject
+  def initialize
+    self.is_template = true
+    self.objects = []
+  end
+
+  defm append(object)
+    add(self.objects, object)
+  end
+
+  defm render(context)
+    str = ''
+    for object in self.objects
+      str .= object.render(context)
+    end
+
+    return str
+  end
+end
+
+class TextObject
+  def initialize(text)
+    self.is_text = true
+    self.text = text
+  end
+
+  defm render(context)
+    return self.text
+  end
+end
+
+class PlaceholderObject
+  def initialize(name)
+    self.is_placeholder = true
+    self.name = name
+    self.filters = []
+  end
+
+  defm set_filter_factory(factory)
+    self.filter_factory = factory
+  end
+
+  defm add_filter(filter_name)
+    add(self.filters, filter_name)
+  end
+
+  defm filter(filter_name, str)
+    unless self.filter_factory.has_filter(filter_name)
+      echo_warn("Warning: Failed to find filter named '#{filter_name}' for placeholder: '#{self.name}'")
+      return str
+    end
+
+    instance = self.filter_factory.get_filter(filter_name)
+    return instance.filter(str)
+  end
+
+  defm render(context)
+    str = context.lookup(self.name)
+
+    for filter_name in self.filters
+      str = self.filter(filter_name, str)
+    end
+
+    return str
+  end
+end
+
+class NewlineObject
+  def initialize
+    self.is_newline = true
+  end
+
+  defm render(context)
+    return "\n"
+  end
+end
+
+class TabObject
+  def initialize
+    self.is_tab = true
+  end
+
+  defm render(context)
+    if &expandtab
+      return repeat(' ', &tabstop)
+    else
+      return "\t"
+    end
+  end
+end
