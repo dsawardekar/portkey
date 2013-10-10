@@ -1,0 +1,7 @@
+build
+*.swp
+*.pyc
+plugin
+autoload
+tmp
+*.log
