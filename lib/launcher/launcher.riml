@@ -48,7 +48,7 @@ class Launcher
 
       " if user's hidden is off we can't use the current window
       " we'll use a split instead
-      if (window_mode == 'e' || window_mode == 'edit') && &hidden == false
+      if (window_mode == 'e' || window_mode == 'edit') && &hidden == false && getbufvar(bufname('%'), '&mod')
         window_mode = 's'
       end
 
