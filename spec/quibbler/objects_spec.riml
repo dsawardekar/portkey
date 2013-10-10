@@ -1,0 +1,96 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'objects.riml'
+
+class MySampleObject
+  defm render(context)
+    return self.render_with
+  end
+end
+
+class TemplateObjectSpec
+  defm describe
+    return 'QuibblerObjectsSpec'
+  end
+
+  defm it_can_render_objects
+    template = new TemplateObject()
+    obj = new MySampleObject()
+    obj.render_with = 'lorem'
+    template.append(obj)
+
+    obj = new MySampleObject()
+    obj.render_with = 'ipsum'
+    template.append(obj)
+
+    obj = new MySampleObject()
+    obj.render_with = 'dolor'
+    template.append(obj)
+
+    result = template.render({})
+    expect(result).to_equal('loremipsumdolor')
+  end
+end
+
+class MockTemplateContext
+  defm lookup(key)
+    return self[key]
+  end
+end
+
+class TextObjectSpec
+  defm describe
+    return 'TextObjectSpec'
+  end
+
+  defm it_can_render_text()
+    obj = new TextObject('source')
+    context = new MockTemplateContext()
+
+    expect(obj.render(context)).to_equal('source')
+  end
+end
+
+class PlaceholderObjectSpec
+  defm describe
+    return 'PlaceholderObjectSpec'
+  end
+
+  defm it_can_render_context_without_filters
+    context = new MockTemplateContext()
+    context.source = 'foo.rb'
+
+    placeholder = new PlaceholderObject('source')
+    factory = new FilterFactory()
+    placeholder.set_filter_factory(factory)
+
+    expect(placeholder.render(context)).to_equal('foo.rb')
+  end
+
+  defm it_can_render_context_with_chain_of_filters
+    context = new MockTemplateContext()
+    context.source = 'foo'
+
+    factory = new FilterFactory()
+
+    filter = new UppercaseFilter()
+    factory.add_filter('upper', filter)
+
+    filter = new LowercaseFilter()
+    factory.add_filter('lower', filter)
+
+    placeholder = new PlaceholderObject('source')
+    placeholder.set_filter_factory(factory)
+    placeholder.add_filter('upper')
+
+    result = placeholder.render(context)
+    expect(result).to_equal('FOO')
+
+    placeholder.add_filter('lower')
+
+    result = placeholder.render(context)
+    expect(result).to_equal('foo')
+  end
+end

@@ -1,0 +1,28 @@
+class ResourceFinder
+  defm needs
+    return ['globber']
+  end
+
+  defm find(context, collector)
+    pattern_list = context.lookup('pattern_list')
+    buffer = context.lookup('buffer')
+    abs_root = buffer.get_abs_root()
+
+    files = []
+
+    for pattern in pattern_list
+      files += self.globber.glob(abs_root, pattern)
+    end
+
+    rel_files = []
+    for file in files
+      if !isdirectory(file)
+        rel_file = substitute(file, abs_root, '', '')
+        collector.add(rel_file)
+      end
+    end
+
+    return true
+  end
+end
+

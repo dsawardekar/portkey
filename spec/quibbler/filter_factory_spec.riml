@@ -1,0 +1,59 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'container.riml'
+riml_include 'inflections.riml'
+riml_include 'inflector.riml'
+
+class MyFilter
+  defm filter(str)
+    return "#{str}-filtered"
+  end
+
+  defm set_inflector(inflector)
+    self.inflector = inflector
+  end
+end
+
+class BaseFilterFactorySpec
+  defm describe
+    return 'BaseFilterFactorySpec'
+  end
+
+  defm it_can_store_filter
+    factory = new BaseFilterFactory()
+    my_filter = new MyFilter()
+
+    expect(factory.has_filter('my_filter')).to_be_false()
+    factory.add_filter('my_filter', my_filter)
+    expect(factory.has_filter('my_filter')).to_be_true()
+    expect(factory.get_filter('my_filter')).to_equal(my_filter)
+  end
+
+  defm it_gives_the_filter_an_inflector_if_needed
+    factory = new BaseFilterFactory()
+    my_filter = new MyFilter()
+
+    factory.add_filter('my_filter', my_filter)
+    expect(my_filter).to_not_have_key('inflector')
+
+    my_filter2 = new MyFilter()
+    factory.inflector = { 'is_inflector': true }
+    factory.add_filter('my_filter2', my_filter)
+    expect(my_filter).to_have_key('inflector')
+  end
+
+  defm it_works_within_a_container
+    c = new Container({})
+    c.register('inflector', 'Inflector')
+    c.register('filter_factory', 'FilterFactory')
+
+    factory = c.lookup('filter_factory')
+
+    expect(factory.get_filter('upper').filter('foo')).to_equal('FOO')
+    expect(factory.get_filter('plural').filter('bird')).to_equal('birds')
+  end
+end
+
+

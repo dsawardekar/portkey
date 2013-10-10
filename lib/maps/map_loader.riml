@@ -1,0 +1,84 @@
+class MapLoader
+  def initialize(Callback)
+    self.Callback = Callback
+  end
+
+  defm load(mappings)
+    self.do_mapping(mappings, true)
+  end
+
+  defm unload(mappings)
+    self.do_mapping(mappings, false)
+  end
+
+  defm do_mapping(mappings, do_load)
+    for mapping in mappings
+      map_keys = mapping.value
+      projection = mapping.source
+      resource_type = projection.get_resource_type()
+
+      " Watch out for any '' mapping!
+      if projection.has_mapping() && projection.get_mapping() != ''
+        map_keys = projection.get_mapping()
+      end
+
+      opts = {}
+      opts.buffer = true
+      opts.silent = true
+
+      map_sequence = '<LocalLeader>' . map_keys
+      builder = new MapBuilder()
+      builder.lhs(map_sequence)
+
+      if do_load
+        builder.mode('nnoremap')
+        builder.rhs(self.get_callback_expr(resource_type))
+      else
+        builder.mode('nunmap')
+        builder.rhs('')
+      end
+
+      builder.options(opts)
+      cmd = builder.build()
+      cmd = 'silent! ' . cmd
+
+      ""echo_msg('"' .cmd . '"')
+      execute(cmd)
+    end
+  end
+
+  defm print(mappings)
+    i = 0
+    for mapping in mappings
+      map_keys = mapping.value
+      projection = mapping.source
+      resource_type = projection.get_resource_type()
+
+      if projection.has_mapping() && projection.get_mapping() != ''
+        map_keys = projection.get_mapping()
+      end
+
+      opts = {}
+      opts.buffer = true
+      opts.silent = true
+
+      map_sequence = g:maplocalleader . map_keys
+      line  = map_sequence
+      line .= repeat(' ', 10 - len(map_sequence))
+      line .= resource_type
+
+      echo_msg(line)
+      i += 1
+    end
+
+    if i == 0
+      echo_warn('Portkey: No Mappings Found.')
+    end
+  end
+
+  defm get_callback_expr(arg)
+    callback_name = get_delegate_name(self.Callback)
+    return ":call #{callback_name}('#{arg}')<CR>"
+  end
+
+end

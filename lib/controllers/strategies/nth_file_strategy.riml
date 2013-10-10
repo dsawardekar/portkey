@@ -1,0 +1,14 @@
+class NthFileStrategy
+  defm needs
+    return ['finder_facade']
+  end
+
+  defm get_launchable(finder_context, options)
+    query_type = finder_context.get_query_type(options)
+    filename = options.get_filename()
+    template_context = finder_context.get_template_context(options)
+    index = options.get_count()
+
+    return self.finder_facade.nth(query_type, template_context, index)
+  end
+end

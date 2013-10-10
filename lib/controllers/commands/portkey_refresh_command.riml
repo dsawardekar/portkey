@@ -1,0 +1,47 @@
+class RefreshCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'PortkeyRefresh'
+  end
+
+  defm has_ex_mode
+    return true
+  end
+
+  defm get_auto_unregister
+    return false
+  end
+
+  defm get_bang
+    return true
+  end
+
+  defm run(opts)
+    if opts.bang
+      " remove current mappings
+      opts = {}
+      opts.is_option = true
+      opts.bang = true
+      opts.silent = true
+      self.process('PortkeyMappings', opts)
+
+      " reload context
+      contexts = self.get_current_contexts()
+      contexts.remove(self.get_current_root())
+    end
+
+    buffer = self.get_current_buffer()
+
+    registry = self.lookup('registry')
+    registry.unregister()
+
+    buffer_collection = self.lookup('buffers')
+    buffer_collection.clear()
+
+    self.process('ConfigureBuffer', buffer)
+    self.process('ChangeCurrentBuffer', buffer)
+  end
+end

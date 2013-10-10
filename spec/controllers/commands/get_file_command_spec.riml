@@ -1,0 +1,82 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class GetFileCommandSpec
+  defm describe
+    return 'GetFileCommandSpec'
+  end
+
+  defm before_each
+    self.driver = new AppDriver()
+  end
+
+  defm after_each
+    :unlet self.driver
+  end
+
+  defm it_can_find_file_from_keyword_under_cursor
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer('spec/projects/basic/foo.rb')
+    b.find_root()
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " not e2e but should be good enough
+    result = d.do_action('GetFile', 'foo')
+    expect(result).to_match('foo.rb$')
+
+    " no match so original keyword returned
+    result = d.do_action('GetFile', 'lorem')
+    expect(result).to_equal('lorem')
+  end
+
+  defm verify_gf(from_buffer, word, expected)
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer(from_buffer)
+    b.find_root()
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " not e2e but should be good enough
+    result = d.do_action('GetFile', word)
+    expect(result).to_match(expected)
+  end
+
+  defm it_can_find_models_from_model_buffer
+    rails = 'spec/projects/rails/'
+
+    self.verify_gf("#{rails}app/models/post.rb", 'comment', 'comment.rb$')
+    self.verify_gf("#{rails}app/models/post.rb", 'author', 'author.rb$')
+  end
+
+  defm it_can_find_models_from_controller_buffer
+    rails = 'spec/projects/rails/'
+    self.verify_gf("#{rails}app/controllers/posts_controller.rb", 'author', 'author.rb$')
+    self.verify_gf("#{rails}app/controllers/posts_controller.rb", 'post', 'post.rb$')
+    self.verify_gf("#{rails}app/controllers/posts_controller.rb", 'comment', 'comment.rb$')
+  end
+
+  defm it_can_find_controllers_from_controller_buffer
+    rails = 'spec/projects/rails/'
+    self.verify_gf("#{rails}app/controllers/posts_controller.rb", 'AuthorsController', 'authors_controller.rb$')
+    self.verify_gf("#{rails}app/controllers/authors_controller.rb", 'PostsController', 'posts_controller.rb$')
+    self.verify_gf("#{rails}app/controllers/posts_controller.rb", 'CommentsController', 'comments_controller.rb$')
+  end
+
+  defm it_can_find_helpers_from_controller_buffer_f
+    rails = 'spec/projects/rails/'
+    self.verify_gf("#{rails}app/controllers/posts_controller.rb", 'PostsHelper', 'posts_helper.rb$')
+  end
+end

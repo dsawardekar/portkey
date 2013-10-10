@@ -1,0 +1,39 @@
+class LoadGetFileCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'LoadGetFile'
+  end
+
+  " only allow gf inside buffers with projections
+  " since variants may use current buffer's projection
+  defm has_ex_mode
+    return self.buffer_has_projection()
+  end
+
+  defm has_ctrlp_mode
+    return self.buffer_has_projection()
+  end
+
+  defm run(opts)
+    unless has_key(self, 'Callback')
+      DelegateFunc = new IncludeExprDelegate(self)
+      self.callback = new_delegate(DelegateFunc, 'invoke')
+    end
+
+    cmd = ":setlocal includeexpr=#{self.callback}(v:fname)"
+    execute(cmd)
+  end
+end
+
+class IncludeExprDelegate
+  def initialize(cmd)
+    self.cmd = cmd
+  end
+
+  defm invoke(filename)
+    return self.cmd.process('GetFile', filename)
+  end
+end

@@ -1,0 +1,248 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'trie.riml'
+riml_include 'pretty_print.riml'
+
+class PrefixCollectorSpec
+  defm describe
+    return 'PrefixCollectorSpec'
+  end
+
+  defm it_can_collect_prefixes
+    collector = new PrefixCollector()
+    collector.accept_start_frame()
+      collector.accept_push('c', 'cat')
+      collector.accept_push('a', 'cat')
+      collector.accept_start_frame()
+        collector.accept_push('r', 'car')
+      collector.accept_end_frame()
+      collector.accept_start_frame()
+        collector.accept_push('t', 'cat')
+      collector.accept_end_frame()
+    collector.accept_end_frame()
+
+    prefixes = collector.get_prefixes()
+    expect(prefixes).to_have_length(2)
+
+    expect(prefixes[0].value).to_equal('car')
+    expect(prefixes[0].source).to_equal('car')
+
+    expect(prefixes[1].value).to_equal('cat')
+    expect(prefixes[1].source).to_equal('cat')
+  end
+
+end
+
+class TrieSpec
+  defm describe
+    return 'TrieSpec'
+  end
+
+  defm it_can_store_word
+    trie = new Trie()
+    trie.add_word('lorem')
+
+    expect(trie.find('lorem')).to_be_true()
+    expect(trie.find('ipsum')).to_be_false()
+  end
+
+  defm it_can_store_words_with_shared_prefix
+    trie = new Trie()
+    trie.add_word('app')
+    trie.add_word('apple')
+
+    expect(trie.find('app')).to_be_true()
+    expect(trie.find('apple')).to_be_true()
+  end
+
+  defm it_can_get_source_of_prefix
+    trie = new Trie()
+    trie.add_word('lorem', {'type': 'lipsum'})
+
+    result = trie.get('lorem')
+    expect(result.get_source().type).to_equal('lipsum')
+  end
+
+  defm it_can_find_prefixes
+    trie = new Trie()
+    trie.add_word('apple')
+
+    expect(trie.find('a')).to_be_true()
+    expect(trie.find('ap')).to_be_true()
+    expect(trie.find('c')).to_be_false()
+  end
+
+  defm it_can_find_distinct_prefixes
+    trie = new Trie()
+    trie.add_word('model')
+    trie.add_word('view')
+    trie.add_word('controller')
+    trie.add_word('component')
+
+    prefixes = trie.find_distinct_prefixes()
+    expect(prefixes).to_have_length(4)
+
+    values = get_prefix_values(prefixes)
+    expect(values).to_equal(['cm', 'cn', 'm', 'v'])
+  end
+
+  defm it_can_provide_source_of_distinct_prefix
+    trie = new Trie()
+    trie.add_word('model', 'mock1')
+    trie.add_word('view', 'mock2')
+    trie.add_word('controller', 'mock3')
+    trie.add_word('component', 'mock4')
+
+    prefixes = trie.find_distinct_prefixes()
+    sources = get_prefix_sources(prefixes)
+
+    expect(sources).to_equal(['mock1', 'mock2', 'mock3', 'mock4'])
+  end
+
+  defm it_can_provide_distinct_prefixes_for_overlapping_words_f
+    trie = new Trie()
+    trie.add_word('cell', 'cell')
+    trie.add_word('controller', 'controller')
+    trie.add_word('component', 'component')
+    trie.add_word('command', 'command')
+    trie.add_word('concern', 'concern')
+
+    prefixes = trie.find_distinct_prefixes()
+    prefixes = get_prefix_values(prefixes)
+
+    expect(prefixes).to_equal(['cc', 'ce', 'cm', 'cp', 'ct'])
+  end
+
+  defm it_can_detect_size
+    trie = new Trie()
+    expect(trie.size()).to_equal(0)
+
+    trie.add_word('a')
+    expect(trie.size()).to_equal(1)
+
+    trie.add_word('a')
+    expect(trie.size()).to_equal(1)
+
+    trie.add_word('b')
+    expect(trie.size()).to_equal(2)
+
+    trie.add_word('apple')
+    expect(trie.size()).to_equal(6)
+
+    trie.add_word('ipsum')
+    expect(trie.size()).to_equal(11)
+  end
+
+  defm it_can_detect_size_given_some_words
+    trie = new Trie()
+    trie.add_word('contains')
+    trie.add_word('controller')
+    trie.add_word('command')
+
+    expect(trie.size()).to_equal(2 + 2 + 4 + 1 + 2 + 3 + 5)
+  end
+
+  defm it_can_find_keys
+    trie = new Trie()
+    trie.add_word('or')
+    trie.add_word('of')
+    trie.add_word('cod')
+    trie.add_word('cat')
+
+    keys = trie.keys()
+    sort(keys)
+    expect(keys).to_equal(['c', 'ca', 'cat', 'co', 'cod', 'o', 'of', 'or'])
+  end
+
+  defm it_can_find_keys_with_prefix
+    trie = new Trie()
+    trie.add_word('or')
+    trie.add_word('of')
+    trie.add_word('cod')
+    trie.add_word('cat')
+
+    expect(trie.find('c')).to_be_true()
+    expect(trie.find('cod')).to_be_true()
+    expect(trie.find('lor')).to_be_false()
+  end
+end
+
+def get_prefix_values(prefixes)
+  values = []
+  return sort(map(prefixes, 'v:val.value'))
+end
+
+def get_prefix_sources(prefixes)
+  values = []
+  return sort(map(prefixes, 'v:val.source'))
+end
+
+class TriePerfSpec
+  defm describe
+    return 'TriePerfSpec'
+  end
+
+  defm before
+    self.trie = new Trie()
+  end
+
+  " ~20ms for ~150 keys
+  " not great performance
+  " could be improved with a Patricia trie
+  " but that could perform worse due to poor viml string performance
+  " TODO: Revisit if it's a blocker
+  " Ideas:
+  " - Unroll the stack implementation
+  defm it_can_find_distinct_prefixes_quickly_perf
+    unless exists('g:speckle_tag') && g:speckle_tag == 'perf'
+      return
+    end
+
+    trie = self.trie
+
+    self.table = table = {}
+    table['a'] = 'action'
+    table['ce'] = 'cell'
+    table['cm'] = 'command'
+    table['cp'] = 'component'
+    table['cn'] = 'concern'
+    table['ct'] = 'controller'
+    table['f'] = 'factory'
+    table['h'] = 'handler'
+    table['jc'] = 'jcommand'
+    table['jn'] = 'jcontroller'
+    table['jf'] = 'jfactory'
+    table['jm'] = 'jmodel'
+    table['jo'] = 'job'
+    table['jv'] = 'jview'
+    table['ma'] = 'mailer'
+    table['me'] = 'model'
+    table['mo'] = 'module'
+    table['v'] = 'view'
+    table['p'] = 'presenter'
+    table['sv'] = 'serializer'
+    table['si'] = 'service'
+    table['sp'] = 'spec'
+    table['su'] = 'support'
+    table['t'] = 'test'
+    table['w'] = 'wrapper'
+
+    for [key, value] in items(table)
+      self.trie.add_word(key, value)
+    end
+
+    self.prefixes = self.trie.find_distinct_prefixes()
+  end
+
+  defm after
+    if has_key(self, 'prefixes')
+      expect(self.prefixes).to_have_length(25)
+      for prefix in self.prefixes
+        expect(prefix.source).to_equal(self.table[prefix.value])
+      end
+    end
+
+    :unlet self.trie
+  end
+
+end

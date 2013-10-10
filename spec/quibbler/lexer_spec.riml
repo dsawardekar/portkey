@@ -1,0 +1,152 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+
+class LexerNavigationSpec
+  defm describe
+    return 'LexerNavigationSpec'
+  end
+
+  defm before_each
+    self.lexer = new Lexer()
+    l = self.lexer
+    l.start = 0
+    l.pos = 0
+    l.input = 'abc'
+    l.length = len(l.input)
+  end
+
+  defm after_each
+    :unlet self.lexer
+  end
+
+  defm it_can_scan_next_rune
+    l = self.lexer
+    l.input = '0123456789'
+    l.length = strlen(l.input)
+
+    for char in split(l.input, '\zs')
+      expect(l.next()).to_equal(char)
+      ""l.print_cursor()
+    end
+  end
+
+  defm it_returns_eof_if_it_scans_past_end
+    l = self.lexer
+    l.input = 'a'
+    l.length = 1
+    l.next()
+
+    expect(l.next()).to_equal('EOF')
+  end
+
+  defm it_can_peek_at_next_rune
+    l = self.lexer
+    expect(l.next()).to_equal('a')
+
+    expect(l.peek()).to_equal('b')
+    expect(l.next()).to_equal('b')
+
+    expect(l.peek()).to_equal('c')
+    expect(l.next()).to_equal('c')
+
+    expect(l.peek()).to_equal('EOF')
+  end
+
+  defm it_can_backup_to_previous_rune
+    l = self.lexer
+
+    expect(l.next()).to_equal('a')
+    l.backup()
+    expect(l.next()).to_equal('a')
+  end
+
+  defm it_can_ignore_runes_a()
+    l = self.lexer
+    l.input = 'lorem'
+    l.length = strlen(l.input)
+
+    l.next()
+    l.next()
+    l.next()
+    l.ignore()
+    expect(l.start).to_equal(l.pos)
+  end
+
+  defm it_can_accept_characters
+    l = self.lexer
+    l.input = '3.14'
+    l.length = strlen(l.input)
+
+    " won't accept a
+    expect(l.accept('a')).to_be_false()
+
+    " will accept as 3 in input
+    expect(l.accept('01234')).to_be_true()
+
+    " won't accept as . is not in valid
+    expect(l.accept('01234')).to_be_false()
+
+    " will accept . with decimal point valid
+    expect(l.accept('.')).to_be_true()
+
+    " will accept 1 as it is in valid
+    expect(l.accept('01234')).to_be_true()
+
+    " will accept 4 as it is in valid
+    expect(l.accept('01234')).to_be_true()
+  end
+
+  defm it_can_accept_runs
+    l = self.lexer
+    l.input = '3.14'
+    l.length = strlen(l.input)
+
+    l.accept_run('.01234')
+    expect(l.next()).to_equal('EOF')
+  end
+
+  defm it_will_not_accept_runs_if_invalid
+    l = self.lexer
+    l.input = '3.14'
+    l.length = strlen(l.input)
+
+    l.accept_run('abcdef')
+    expect(l.next()).to_equal('3')
+  end
+
+  defm it_can_emit_tokens
+    l = self.lexer
+    l.input = 'lorem ipsum dolor'
+    l.length = strlen(l.input)
+    l.stream = []
+
+    l.accept('l')
+    l.accept('o')
+    l.accept('r')
+    l.accept('e')
+    l.accept('m')
+    l.emit(100)
+
+    word = l.stream[0]
+    expect(word.type).to_equal(100)
+    expect(word.value).to_equal('lorem')
+
+    l.next()
+    l.ignore()
+
+    expect(l.next()).to_equal('i')
+  end
+
+  defm it_can_identify_null_state
+    l = self.lexer
+    lexText = new LexText()
+    lexNull = new LexNull()
+
+    expect(l.is_state(lexText)).to_be_true()
+    expect(l.is_state(lexNull)).to_be_false()
+  end
+
+end

@@ -1,0 +1,87 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'object_cache.riml'
+riml_include 'template_context.riml'
+riml_include 'finder.riml'
+riml_include 'buffer.riml'
+riml_include 'ranker.riml'
+riml_include 'projection_ranker.riml'
+
+class ProjectionRankerSpec
+  defm describe
+    return 'RankerSpec'
+  end
+
+  defm it_can_rank_projections
+    data = {}
+    data.buffer = new Buffer('spec/projects/rails/spec/helpers/posts_helper_spec.rb')
+
+    context = new TemplateContext(data)
+    ra = new ProjectionRanker()
+
+    items = []
+    add(items, new RankItem('app/controllers/posts_controller.rb', 0))
+    add(items, new RankItem('app/helpers/posts_helper.rb', 0))
+    add(items, new RankItem('app/models/post.rb', 0))
+
+    ra.rank(context, items)
+
+    r = new Ranker()
+    r.sort(items)
+
+    top = items[0]
+    expect(top.get_path()).to_equal('app/helpers/posts_helper.rb')
+  end
+
+  defm it_can_rank_test_projections
+    data = {}
+    data.buffer = new Buffer('spec/syntax/syntax_loader_spec.riml')
+
+    context = new TemplateContext(data)
+    ra = new ProjectionRanker()
+
+    items = []
+    add(items, new RankItem('app/controllers/posts_controller.rb', 0))
+    add(items, new RankItem('app/helpers/posts_helper.rb', 0))
+    add(items, new RankItem('app/models/post.rb', 0))
+    add(items, new RankItem('lib/models/syntax_loader_spec.riml', 0))
+    add(items, new RankItem('lib/syntax/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/trie/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/utils/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/logger/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/maps/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/ctrlp/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/make/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/container/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/launcher/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/rankers/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/finders/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/quibbler/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/commands/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/inflector/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/extensions/syntax_loader.riml', 0))
+    add(items, new RankItem('lib/controller/commands/syntax_loader_command.riml', 0))
+    add(items, new RankItem('lib/collecions/syntax_loader_collection.riml', 0))
+
+    ra.rank(context, items)
+
+    r = new Ranker()
+    r.sort(items)
+
+    top = items[0]
+    expect(top.get_path()).to_equal('lib/syntax/syntax_loader.riml')
+  end
+
+  defm get_path_at(items, index)
+    item = items[index]
+    return item.get_path()
+  end
+
+  defm print_rankings(items)
+    for item in items
+      info(item.get_path(), item.get_ranking())
+    end
+  end
+end

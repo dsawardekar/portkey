@@ -1,0 +1,258 @@
+:let s:charBackslash = '\'
+s:charsAlphaLower = 'abcdefghijklmnopqrstuvwxyz'
+s:charsAlphaUpper = toupper(s:charsAlphaLower)
+s:charsAlpha = "#{s:charsAlphaLower}#{s:charsAlphaUpper}"
+s:charsWhitespace = " \t"
+s:charsKeyword = "#{s:charsAlpha}_"
+
+class LexNull
+  def initialize
+    self.is_null = true
+  end
+
+  defm scan(lexer)
+  end
+end
+
+class LexText
+  defm scan(lexer)
+    while true
+      rune = lexer.peek()
+
+      if rune == '%'
+        lexer.emit_text()
+        lexer.next()
+        return 'LexInsideModifier'
+      elseif rune == s:charBackslash
+        " emit text upto the escape
+        lexer.emit_text()
+
+        " go inside escape
+        lexer.next()
+        return 'LexInsideEscape'
+      end
+
+      if lexer.next() == 'EOF'
+        break
+      end
+    end
+
+    lexer.emit_text()
+    lexer.emit(s:itemEOF)
+
+    return 'LexNull'
+  end
+
+end
+
+class LexInsideModifier
+  defm scan(lexer)
+    rune = lexer.peek()
+
+    if rune == '%'
+      " escape the % sign
+      lexer.emit_text()
+
+      " jump ahead to escape the next %
+      lexer.advance()
+
+      return 'LexText'
+    elseif rune == ' ' || rune == 'EOF'
+      " as is modifier, ie:- source_path
+      lexer.emit(s:itemModifier)
+
+      return 'LexText'
+    elseif rune == '{'
+      " go inside left delim
+      lexer.next()
+      return 'LexLeftDelim'
+    else
+      " emit the modifier char and back to LexText
+      " ignore the % we only need the modifier name
+      lexer.ignore()
+
+      " allow only alphabets
+      lexer.accept(s:charsAlpha)
+      lexer.emit(s:itemModifier)
+
+      return 'LexText'
+    end
+  end
+end
+
+class LexLeftDelim
+  defm scan(lexer)
+    " enter into placeholder, skipping over delim
+    lexer.ignore()
+
+    " accept any whitespace then go inside placeholder
+    lexer.ignore_whitespace()
+
+    return 'LexInsidePlaceholder'
+  end
+end
+
+class LexRightDelim
+  defm scan(lexer)
+    " ignore the right delim and back to LexText
+    lexer.ignore()
+    return 'LexText'
+  end
+end
+
+class LexInsidePlaceholder
+  defm scan(lexer)
+    rune = lexer.peek()
+
+    if rune == '}'
+      lexer.backup()
+      if lexer.peek() == '{'
+        lexer.error("Empty placeholder / filter name")
+      else
+        lexer.next()
+      end
+
+      " move into right delim
+      lexer.next()
+      return 'LexRightDelim'
+    else
+      " move into placeholder name
+      return "LexInsidePlaceholderName"
+    end
+  end
+end
+
+class LexInsidePlaceholderName
+  defm scan(lexer)
+    " prefixed whitespace
+    lexer.ignore_whitespace()
+    lexer.accept_keyword()
+
+    " if no keyword matched, missing placeholder name
+    unless lexer.is_ahead()
+      lexer.error("Expected placeholder name after '{' ")
+      return 'LexNull'
+    end
+
+    " the placeholder name
+    lexer.emit(s:itemPlaceholder)
+
+    " suffixed whitespace
+    lexer.ignore_whitespace()
+
+    rune = lexer.peek()
+
+    if rune == '|'
+      " move into filter(s)
+      lexer.next()
+      return 'LexInsideFilter'
+    elseif rune == 'EOF'
+      lexer.error("Expected a closing '}' before EOF ")
+    else
+      return 'LexInsidePlaceholder'
+    end
+  end
+end
+
+class LexInsideFilter
+  defm scan(lexer)
+    rune = lexer.peek()
+    lexer.ignore_whitespace()
+
+    if rune == '}'
+      " if at end of placeholder move out
+      lexer.next()
+      return 'LexRightDelim'
+    else
+      " start filter chain scanning
+      " we are already into the filter if we came in from outside
+      lexer.ignore()
+      return 'LexInsideFilterChain'
+    end
+  end
+end
+
+class LexInsideFilterChain
+  defm scan(lexer)
+    " prefixed whitespace
+    lexer.ignore_whitespace()
+
+    " filter keyword
+    lexer.accept_keyword()
+
+    " if no keyword matched, missing filter name
+    unless lexer.is_ahead()
+      lexer.error("Expected filter name after | ")
+      return 'LexNull'
+    end
+
+    " the filter name
+    lexer.emit(s:itemFilter)
+
+    " suffixed whitespace
+    lexer.ignore_whitespace()
+
+    rune = lexer.peek()
+
+    if rune == '|'
+      " chained filter, move in
+      lexer.advance()
+      return 'LexInsideFilterChain'
+    else
+      return 'LexInsideFilter'
+    end
+  end
+end
+
+class LexInsideEscape
+  defm scan(lexer)
+    rune = lexer.peek()
+
+    if rune == 'n' || rune == 'r'
+      " if newline emit newline"
+      lexer.advance()
+      lexer.emit(s:itemNewline)
+    elseif rune == 't'
+      " if tab emit tab
+      lexer.advance()
+      lexer.emit(s:itemTab)
+    elseif rune == s:charBackslash
+      " skip ahead, to use literal backslash
+      " TODO: E2E test
+      lexer.advance()
+    end
+
+    " back to LexText
+    return 'LexText'
+  end
+end
+
+class LexStateFactory
+  def initialize
+    s = {}
+    s.LexNull = new LexNull()
+    s.LexText = new LexText()
+    s.LexLeftDelim = new LexLeftDelim()
+    s.LexRightDelim = new LexRightDelim()
+    s.LexInsideModifier = new LexInsideModifier()
+    s.LexInsidePlaceholder = new LexInsidePlaceholder()
+    s.LexInsidePlaceholderName = new LexInsidePlaceholderName()
+    s.LexInsideEscape = new LexInsideEscape()
+    s.LexInsideFilter = new LexInsideFilter()
+    s.LexInsideFilterChain = new LexInsideFilterChain()
+
+    self.states = s
+  end
+
+  defm get_state(name)
+    return self.states[name]
+  end
+end
+
+def get_lex_state(name)
+  unless exists('s:lexStateFactory')
+    s:lexStateFactory = new LexStateFactory()
+  end
+
+  return s:lexStateFactory.get_state(name)
+end

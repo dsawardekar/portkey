@@ -1,0 +1,25 @@
+class ResourceFinderContext < FinderContext
+  defm get_query_type(options)
+    return 'resource'
+  end
+
+  defm get_template_context(options)
+    resource_type = options.get_resource_type()
+
+    projections = self.get_current_projections()
+    projection = projections.find_by_resource_type(resource_type)
+    pattern_list = projection.get_patterns()
+    buffer = self.get_current_buffer()
+
+    data_frame = new ResourceDataFrame(buffer)
+    data_frame.set_pattern_list(pattern_list)
+
+    if buffer.has_projection()
+      data_frame.set_source(buffer.get_source())
+      data_frame.set_source_path(buffer.get_rel_path())
+    end
+
+    context = new TemplateContext(data_frame)
+    return context
+  end
+end

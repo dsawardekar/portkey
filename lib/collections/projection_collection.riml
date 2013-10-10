@@ -1,0 +1,215 @@
+class ProjectionCollection
+  def initialize
+    " hashmap on resource_type of projection
+    self.projections = {}
+
+    " trie of command names
+    self.trie = new Trie()
+  end
+
+  defm needs
+    return ['extensions']
+  end
+
+  defm get_matcher
+    unless has_key(self, 'matcher')
+      self.matcher = new ProjectionMatcher(self)
+    end
+
+    return self.matcher
+  end
+
+  defm add(resource_type, json)
+    if self.has(resource_type)
+      projection = self.find_by_resource_type(resource_type)
+      is_new = false
+    else
+      projection = new Projection(resource_type)
+      is_new = true
+    end
+
+    loader = new ProjectionLoader(projection)
+    changed = loader.load(json)
+
+    if is_new
+      self.projections[resource_type] = projection
+      self.trie.add_word(resource_type, projection)
+      self.change_projection(projection)
+    end
+
+    if changed
+      self.get_matcher().update()
+    end
+
+    return projection
+  end
+
+  defm change_projection(projection)
+    if has_key(self, 'extensions')
+      extensions = self.extensions
+      " TODO: order may be important here
+      for extension in extensions.get_all_extensions()
+        extension.configure_projection(projection)
+      end
+    end
+  end
+
+  defm has(resource_type)
+    return has_key(self.projections, resource_type)
+  end
+
+  defm find_by_resource_type(resource_type)
+    if has_key(self.projections, resource_type)
+      return self.projections[resource_type]
+    else
+      " For :Emod which vim autocompletes without a
+      " full command name(:Emodel) we get it from the trie
+      node = self.trie.get(resource_type)
+      if node.is_node
+        return node.get_source()
+      else
+        return { 'is_projection': false }
+      end
+    end
+  end
+
+  defm get_projections()
+    return values(self.projections)
+  end
+
+  defm get_resource_types()
+    return keys(self.projections)
+  end
+
+  defm get_mappings()
+    return self.trie.find_distinct_prefixes()
+  end
+
+  defm get_patterns(order)
+    return self.get_matcher().get_patterns(order)
+  end
+
+  defm match(path, *args)
+    if len(args) == 1
+      order = args[0]
+    else
+      order = 'desc'
+    end
+
+    return self.get_matcher().match(path, order)
+  end
+end
+
+class ProjectionLoader
+  def initialize(projection)
+    self.projection = projection
+    self.changed = false
+  end
+
+  defm load(json)
+    self.changed = false
+
+    self.load_property('affinity', 'affinity', json)
+    self.load_property('mapping', 'mapping', json)
+    self.load_property('compiler', 'compiler', json)
+    self.load_property('scope', 'scope', json)
+
+    self.load_projection_template('alternate', json)
+    self.load_projection_template('related', json)
+    self.load_projection_template('test', json)
+
+    self.load_pattern(json)
+
+    if has_key(json, 'keywords')
+      json['keyword_list'] = split(json['keywords'], ' ')
+      self.load_list('keyword', 'keyword_list', json)
+    end
+
+    if self.changed
+      self.projection.bump_revision()
+    end
+
+    return self.changed
+  end
+
+  defm get_changed
+    return self.changed
+  end
+
+  defm load_property(property, key, json)
+    if has_key(json, key)
+      value = json[key]
+      self.change_property(property, value)
+    end
+  end
+
+  defm load_projection_template(projection_type, json)
+    if has_key(json, projection_type)
+      value = json[projection_type]
+
+      if type(value) == type('')
+        self.changed = self.projection.add_projection_template(projection_type, value)
+      elseif type(value) == type([])
+        self.changed = call(self.projection['add_projection_template'], [projection_type] + value, self.projection)
+      end
+    end
+  end
+
+  defm load_list(property, key, json)
+    if has_key(json, key)
+      list = json[key]
+      self.change_list(property, list)
+    end
+  end
+
+  defm load_pattern(json)
+    if has_key(json, 'pattern')
+      pattern = self.projection.add_pattern(json['pattern'])
+      if has_key(json, 'template')
+        pattern.set_template(json['template'])
+      end
+    end
+  end
+
+  defm has_property(property)
+    getter = "get_#{property}"
+    value = call(self.projection[getter], [], self.projection)
+
+    if property == 'template'
+      return value.get_original() != ''
+    else
+      return value != 'null'
+    end
+  end
+
+  defm change_property(property, value)
+    unless self.has_property(property)
+      setter = "set_#{property}"
+      result = call(self.projection[setter], [value], self.projection)
+      self.changed = true
+    end
+  end
+
+  defm change_list(property, value)
+    setter = "add_#{property}"
+    if type(value) == type('')
+      self.change_list_item(property, value)
+    else
+      for item in value
+        self.change_list_item(property, item)
+      end
+    end
+  end
+
+  defm change_list_item(property, value)
+    getter = "has_#{property}"
+    has_item = call(self.projection[getter], [value], self.projection)
+
+    unless has_item
+      setter = "add_#{property}"
+      result = call(self.projection[setter], [value], self.projection)
+      self.changed = true
+    end
+  end
+end
+

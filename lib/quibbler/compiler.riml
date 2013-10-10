@@ -1,0 +1,115 @@
+class Compiler
+  def initialize
+    self.newline_object = new NewlineObject()
+    self.tab_object = new TabObject()
+  end
+
+  defm needs
+    return ['filter_factory']
+  end
+
+  defm get_object(token)
+    token_type = token.type
+    if token_type == s:itemText
+      return new TextObject(token.value)
+    elseif token_type == s:itemPlaceholder
+      placeholder = new PlaceholderObject(token.value)
+      placeholder.set_filter_factory(self.filter_factory)
+
+      return placeholder
+    elseif token_type == s:itemModifier
+      key_name = self.get_key_name_for_modifier(token.value)
+      placeholder = new PlaceholderObject(key_name)
+
+      filter = self.get_filter_for_modifier(token.value)
+      if filter != 'null'
+        placeholder.add_filter(filter)
+      end
+
+      placeholder.set_filter_factory(self.filter_factory)
+
+      return placeholder
+    elseif token_type == s:itemFilter
+      return { 'is_filter': true }
+    elseif token_type == s:itemNewline
+      return self.newline_object
+    elseif token_type == s:itemTab
+      return self.tab_object
+    elseif token_type == s:itemEOF
+      return { 'is_eof': true }
+    else
+      throw "CompilerError: Unknown Token, type=#{token.type}, value=#{token.value}"
+    end
+  end
+
+  defm get_key_name_for_modifier(modifier)
+    if modifier == 's'
+      return 'source'
+    elseif modifier == '%'
+      return 'source_path'
+    elseif modifier == 'd'
+      return 'tag'
+    elseif modifier == 'l'
+      return 'line'
+    else
+      return 'source'
+    end
+  end
+
+  defm get_filter_for_modifier(modifier)
+    if modifier == 's' || modifier == '%'
+      return 'null'
+    elseif modifier == 'S'
+      return 'camel'
+    elseif modifier == 'p'
+      return 'plural'
+    elseif modifier == 'i'
+      return 'singular'
+    elseif modifier == 'h'
+      return 'human'
+    else
+      return 'null'
+    end
+  end
+
+  defm is_placeholder(object)
+    return has_key(object, 'is_placeholder')
+  end
+
+  defm is_filter(object)
+    return has_key(object, 'is_filter')
+  end
+
+  defm is_eof(object)
+    return has_key(object, 'is_eof')
+  end
+
+  defm is_visible(object)
+    return !(self.is_filter(object) || self.is_eof(object))
+  end
+
+  " public api
+  defm compile(tokens)
+    template = new TemplateObject()
+    placeholder = {}
+
+    " TODO: make this smarter
+    for token in tokens
+      object = self.get_object(token)
+      if self.is_placeholder(object)
+        placeholder = object
+      end
+
+      if self.is_filter(object)
+        placeholder.add_filter(token.value)
+      end
+
+      if self.is_visible(object)
+        template.append(object)
+      end
+    end
+
+    return template
+  end
+end
+

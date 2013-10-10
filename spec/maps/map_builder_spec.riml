@@ -1,0 +1,65 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'map_builder.riml'
+
+class MapBuilderSpec
+  defm describe
+    return 'MapBuilderSpec'
+  end
+
+  defm it_can_build_map_command1
+    opts = {}
+    opts.buffer = true
+    opts.nowait = true
+    opts.silent = true
+    opts.script = false
+
+    b = new MapBuilder()
+    b.lhs('lhs')
+    b.rhs('rhs')
+    b.options(opts)
+
+    cmd = b.build()
+    expect(cmd).to_match('<buffer>')
+    expect(cmd).to_match('<nowait>')
+    expect(cmd).to_match('<silent>')
+    expect(cmd).to_not_match('<script>')
+    expect(cmd).to_match('lhs')
+    expect(cmd).to_match('rhs')
+  end
+end
+
+class MapBuilderE2ESpec
+  defm describe
+    return 'MapBuilderE2ESpec'
+  end
+
+  defm before
+    self.did_hello = false
+  end
+
+  defm do_hello(a, b, c)
+    self.did_hello = true
+    self.did_hello_args = [a, b, c]
+  end
+
+  defm it_can_build_maps
+    opts = {}
+    opts.buffer = true
+
+    b = new MapBuilder()
+    b.lhs('lorem')
+    b.rhs(':call ' . new_delegate(self, 'do_hello') . '(1, 2, 3)<CR>')
+    b.options(opts)
+
+    cmd = b.build()
+    execute(cmd)
+    execute(':normal lorem')
+
+    expect(self.did_hello).to_be_true()
+    expect(self.did_hello_args).to_equal([1, 2, 3])
+  end
+end
+
+

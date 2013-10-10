@@ -1,0 +1,129 @@
+class MockCommand
+  defm is_mock
+    return true
+  end
+
+  defm get_command_id
+    return self.command_id
+  end
+
+  defm get_auto_register
+    return self.get_mocked('auto_register', true)
+  end
+
+  defm get_auto_unregister
+    return true
+  end
+
+  defm has_ex_mode
+    return self.get_mocked('ex_mode', self.get_auto_register())
+  end
+
+  defm has_ctrlp_mode
+    return self.get_mocked('ctrlp_mode', self.get_auto_register())
+  end
+
+  defm set_registered(registered)
+    self.registered = registered
+  end
+
+  defm has_registered
+    return self.registered
+  end
+
+  defm get_mocked(key, default)
+    if has_key(self, key)
+      return self[key]
+    else
+      return default
+    end
+  end
+
+  defm get_name
+    return self.get_mocked('name', 'MockCommand')
+  end
+
+  defm get_display_name(cmd_name)
+    return self.get_mocked('display_name', cmd_name)
+  end
+
+  defm get_names
+    return self.get_mocked('names', [self.get_name()] + self.get_aliases())
+  end
+
+  defm get_aliases
+    return self.get_mocked('aliases', [])
+  end
+
+  defm get_ctrlp_aliases
+    return self.get_mocked('ctrlp_aliases', self.get_aliases())
+  end
+
+  defm get_ctrlp_names
+    return self.get_mocked('ctrlp_names', self.get_ctrlp_aliases())
+  end
+
+  defm get_bang
+    return self.get_mocked('bang', false)
+  end
+
+  defm get_bar
+    return self.get_mocked('bar', true)
+  end
+
+  defm get_nargs
+    return self.get_mocked('nargs', '*')
+  end
+
+  defm get_buffer
+    return self.get_mocked('nargs', true)
+  end
+
+  defm get_register
+    return self.get_mocked('register', false)
+  end
+
+  defm get_range
+    return self.get_mocked('range', false)
+  end
+
+  defm get_count
+    return self.get_mocked('count', false)
+  end
+
+  defm get_completer
+    return self.get_mocked('completer', false)
+  end
+
+  defm get_options
+    if has_key(self, 'options')
+      return self.options
+    end
+
+    opts = {}
+    opts.bang = self.get_bang()
+    opts.bar = self.get_bar()
+    opts.nargs = self.get_nargs()
+    opts.buffer = self.get_buffer()
+    opts.register = self.get_register()
+    opts.complete = self.get_completer()
+    opts.range = self.get_range()
+    opts.count = self.get_count()
+
+    return opts
+  end
+
+  defm complete(word, cmd_line, cursor)
+    self.complete_args = [word, cmd_line, cursor]
+    return self.get_mocked('complete_with', [])
+  end
+
+  defm run(...)
+    n = len(a:000)
+    self.run_args = a:000[0:n-2]
+    self.run_options = a:000[n-1]
+
+    return self.run_args
+  end
+end
+

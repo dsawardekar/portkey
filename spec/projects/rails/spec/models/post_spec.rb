@@ -1,0 +1,2 @@
+describe Post do
+end

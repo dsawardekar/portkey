@@ -1,0 +1,28 @@
+{
+  "config": {
+    "inflections": {
+      "mode": "prepend",
+      "acronyms": ["HTTP"],
+      "uncountables": ["oxygen"],
+      "irregulars": {
+        "man": "men"
+      },
+      "singulars": {
+        "(m)ovies$": "\\1ovie"
+      },
+      "plurals": {
+        "(buffal|tomat|potat)o$": "\\1oes"
+      }
+    }
+  },
+  "*.rb": {
+    "command": "model",
+    "alternate": "%s_spec.rb",
+    "template": "class %S\nend"
+  },
+  "*_spec.rb": {
+    "command": "spec",
+    "alternate": "%s.rb",
+    "template": "describe '%h'\nend"
+  }
+}

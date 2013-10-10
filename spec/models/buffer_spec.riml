@@ -1,0 +1,70 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'buffer.riml'
+
+class BasicBufferSpec
+  defm describe
+    return 'BasicBufferSpec'
+  end
+
+  defm it_has_a_path()
+    buffer = new Buffer('foo')
+    expect(buffer.get_path()).to_equal('foo')
+  end
+
+end
+
+class BufferWithoutPortkeySpec
+  defm describe
+    return 'Buffer without portkey.json'
+  end
+
+  defm it_wont_find_root_if_portkey_json_is_absent()
+    buffer = new Buffer('../')
+    expect(buffer.find_root()).to_be_false()
+    expect(buffer.has_root()).to_be_false()
+  end
+
+end
+
+class BufferWithPortkeySpec
+  defm describe
+    return 'Buffer with portkey.json'
+  end
+
+  defm it_will_find_root_if_portkey_json_is_present
+    buffer = new Buffer("spec/projects/basic/foo.rb")
+    buffer.find_root()
+    expect(buffer.get_root()).to_equal('spec/projects/basic')
+  end
+
+  defm it_can_find_abs_root
+    buffer = new Buffer("spec/projects/basic/foo.rb")
+    buffer.find_root()
+    expect(buffer.get_abs_root()).to_match('spec/projects/basic/$')
+  end
+
+  defm it_can_find_abs_path
+    buffer = new Buffer("spec/projects/basic/foo.rb")
+    buffer.find_root()
+    expect(buffer.get_abs_path()).to_match('spec/projects/basic/foo.rb$')
+  end
+
+  defm it_can_find_rel_path
+    buffer = new Buffer("spec/projects/basic/foo.rb")
+    buffer.find_root()
+    expect(buffer.get_rel_path()).to_match('foo.rb$')
+  end
+
+  defm it_can_build_portkey_display_path
+    buffer = new Buffer("spec/projects/basic/foo.rb")
+    buffer.find_root()
+    expect(buffer.get_portkey_display_path()).to_equal('basic/portkey.json')
+  end
+
+  defm it_can_build_portkey_display_path_from_given
+    buffer = new Buffer("spec/projects/basic/foo.rb")
+    buffer.find_root()
+    expect(buffer.get_portkey_display_path('spec/projects/rails/portkey.json')).to_equal('rails/portkey.json')
+  end
+end

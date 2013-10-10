@@ -1,0 +1,77 @@
+class UppercaseFilter
+  defm filter(str)
+    return toupper(str)
+  end
+end
+
+class LowercaseFilter
+  defm filter(str)
+    return tolower(str)
+  end
+end
+
+class InflectorFilter
+  defm set_inflector(inflector)
+    self.inflector = inflector
+  end
+end
+
+class PluralFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.pluralize(str)
+  end
+end
+
+class SingularFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.singularize(str)
+  end
+end
+
+class CamelcaseFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.camelize(str)
+  end
+end
+
+class LowerCamelcaseFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.lower_camelize(str)
+  end
+end
+
+class UnderscoreFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.underscorize(str)
+  end
+end
+
+class HumanFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.humanize(str)
+  end
+end
+
+class DashFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.dasherize(str)
+  end
+end
+
+class TitleFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.titleize(str)
+  end
+end
+
+class TableFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.tableize(str)
+  end
+end
+
+class ClassFilter < InflectorFilter
+  defm filter(str)
+    return self.inflector.classify(str)
+  end
+end

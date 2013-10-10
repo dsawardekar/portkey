@@ -1,0 +1,19 @@
+class TemplateContext
+  def initialize(data)
+    self.data = data
+  end
+
+  defm lookup(key)
+    if has_key(self, key)
+      return self[key]
+    elseif has_key(self.data, a:key)
+      return self.data[key]
+    elseif a:key == 'context'
+      return self.data
+    elseif has_key(self.data, 'lookup')
+      return self.data.lookup(key)
+    else
+      return ''
+    end
+  end
+end

@@ -1,0 +1,52 @@
+class ExtractorCollection
+  def initialize
+    self.extractors = []
+  end
+
+  defm add_extractor(extractor)
+    insert(self.extractors, extractor)
+  end
+
+  defm remove_extractor(name)
+    i = 0
+    for extractor in self.extractors
+      if extractor.get_name() == name
+        remove(self.extractors, i)
+        break
+      end
+
+      i += 1
+    end
+  end
+
+  defm get_all_extractors
+    return self.extractors
+  end
+
+  defm has_extractor(name)
+    i = 0
+    for extractor in self.extractors
+      if extractor.get_name() == name
+        return true
+      end
+
+      i += 1
+    end
+
+    return false
+  end
+
+  defm find_extractor(context)
+    for extractor in self.extractors
+      if extractor.match(context)
+        return extractor
+      end
+    end
+
+    return { 'is_extractor': false }
+  end
+
+  defm size
+    return len(self.extractors)
+  end
+end

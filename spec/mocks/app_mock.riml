@@ -1,0 +1,18 @@
+class AppMock
+  def initialize()
+    self.is_mock = true
+  end
+
+  defm on_buffer_open(buffer)
+    self.open_buffer = buffer
+  end
+
+  defm on_buffer_enter(buffer)
+    self.enter_buffer = buffer
+  end
+
+  defm on_buffer_leave(buffer)
+    self.leave_buffer = buffer
+  end
+
+end

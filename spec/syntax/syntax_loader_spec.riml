@@ -1,0 +1,49 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'syntax_loader.riml'
+
+class SyntaxLoaderSpec
+  defm describe
+    return 'SyntaxLoaderSpec'
+  end
+
+  defm before
+    self.syntax_dir = 'spec'
+    self.old_rtp = "#{&rtp}"
+    &rtp = "#{self.syntax_dir},#{&rtp}"
+  end
+
+  defm after
+    &rtp = "#{self.old_rtp}"
+  end
+
+  defm it_can_store_syntax_paths
+    loader = new SyntaxLoader()
+    loader.register('model', 'model_syntax')
+
+    expect(loader.get_syntax('model')).to_equal('model_syntax')
+  end
+
+  defm it_can_load_syntax_files
+    loader = new SyntaxLoader()
+    loader.register('model', 'syntax/some_model_syntax.vim')
+    loader.load('model')
+
+    expect(exists('g:loaded_model_syntax')).to_not_equal(0)
+    expect(g:loaded_model_syntax).to_equal('yes')
+
+    :unlet g:loaded_model_syntax
+  end
+
+  defm it_can_load_syntax_files
+    loader = new SyntaxLoader()
+    loader.register('*.js', 'syntax/some_other_syntax.vim')
+    loader.load_by_pattern('app/models/post.js')
+
+    expect(exists('g:loaded_some_other_syntax')).to_not_equal(0)
+    expect(g:loaded_some_other_syntax).to_equal('yes')
+
+    :unlet g:loaded_some_other_syntax
+  end
+end
+

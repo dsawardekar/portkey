@@ -1,0 +1,83 @@
+class AppDriver
+  def initialize
+    self.app = new App()
+  end
+
+  defm start()
+    self.app.start()
+  end
+
+  defm get_controller()
+    return self.app.controller
+  end
+
+  defm lookup(object)
+    return self.get_controller().container.lookup(object)
+  end
+
+  defm do_buffer_open(buffer)
+    self.app.on_buffer_open(buffer)
+  end
+
+  defm do_buffer_enter(buffer)
+    self.app.on_buffer_enter(buffer)
+  end
+
+  defm do_action(*args)
+    controller = self.get_controller()
+    return call(controller['process'], args, controller)
+  end
+
+  defm do_complete(cmd, word, cmd_line, cursor)
+    registry = self.lookup('registry')
+
+    match = registry.find(cmd)
+    if match.ok
+      cmd_obj = match.cmd
+      return registry.complete_command(cmd_obj.get_command_id(), cmd, '', cmd, 0)
+    else
+      warn("do_complete failed: '#{cmd}' command not found.")
+      return []
+    end
+  end
+
+  defm do_autocmd(cmd, ...)
+    if len(a:000) > 0 && type(a:000[-1]) == type({})
+      opts = a:000[-1]
+      args = a:000[0:-2]
+    else
+      opts = {}
+      args = a:000
+    end
+
+    registry = self.lookup('registry')
+    match = registry.find(cmd)
+
+    if match.ok
+      id = match.cmd.get_command_id()
+      return registry.run_command(id, cmd, args, opts)
+    else
+      warn("do_autocmd failed: #{cmd} command not found.")
+      return false
+    end
+  end
+
+  defm do_switch_cmd(cmd, buffer_path, target_file, opts)
+    buffer = new Buffer(buffer_path)
+    buffer.find_root()
+
+    file_opener = self.lookup('file_opener')
+    file_opener.set_exec_mode(false)
+
+    self.do_buffer_open(buffer)
+    self.do_buffer_enter(buffer)
+    self.do_autocmd(cmd, target_file, opts)
+
+    return file_opener
+  end
+
+  defm mark_mock(cmd)
+    cmd_obj = self.lookup('registry').find(cmd)
+    cmd_obj.mocked = true
+  end
+end

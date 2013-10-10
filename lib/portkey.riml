@@ -1,0 +1,63 @@
+" ifdef
+if exists('g:portkey_app_loaded')
+  finish
+end
+
+" include all portkey files
+riml_include 'portkey_inc.riml'
+
+" logger
+riml_include 'python_file_writer.riml'
+riml_include 'file_log_writer.riml'
+riml_include 'logger.riml'
+
+" must be outside a function
+s:portkey_app_path = expand('<sfile>:h')
+
+" bootstrap
+def portkey#app()
+  if !exists('s:app')
+    init_logger()
+
+    s:app = new App()
+    s:app.start()
+    g:portkey_app_loaded = true
+  end
+
+  return s:app
+end
+
+def portkey#add_extension(extension)
+  app = portkey#app()
+  app.add_extension(extension)
+end
+
+def init_logger
+  unless exists('g:portkey_logger') && g:portkey_logger && has('python')
+    return
+  end
+
+  file_writer = new PythonFileWriter(get_sys_path(), get_log_file())
+
+  s:logger_writer = new FileLogWriter()
+  s:logger_writer.set_writer(file_writer)
+
+  logger = get_logger()
+  logger.add_log_writer(s:logger_writer)
+  logger.log("Portkey: version=#{g:portkey_version}")
+end
+
+def get_sys_path
+  current_dir = fnamemodify(s:portkey_app_path, ':h')
+  return current_dir
+end
+
+def get_log_file
+  current_dir = fnamemodify(s:portkey_app_path, ':h')
+
+  log_dir = "#{current_dir}/logs"
+  log_file = "#{log_dir}/portkey.log"
+
+  return log_file
+end
+

@@ -1,0 +1,30 @@
+class ProjectionFinder
+  def initialize(projector)
+    self.projector = projector
+  end
+
+  defm find(context, collector)
+    projection = context.lookup('projection')
+    projection_type = context.lookup('projection_type')
+    buffer = context.lookup('buffer')
+    root = buffer.get_abs_root()
+
+    templates = self.projector.get_projection_templates(projection, projection_type, context)
+
+    for template in templates
+      collector.add(template)
+    end
+    "info(templates)
+
+    return true
+  end
+
+  defm is_readable(file)
+    " for mocking
+    if has_key(self, 'readable')
+      return self.readable
+    end
+
+    return filereadable(file)
+  end
+end

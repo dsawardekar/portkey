@@ -1,0 +1,90 @@
+class TokenMatcher
+  defm match(expected, actual)
+    self.token_id = get_token_id(expected)
+    return actual == self.token_id
+  end
+
+  defm failure_message_for_match(expected, actual)
+    return "Expected #{expected} to be #{actual}, but was id: #{self.token_id}"
+  end
+
+  defm failure_message_for_mismatch(expected, actual)
+    return "Expected #{expected} to not be #{actual}, but was id: #{self.token_id}"
+  end
+end
+
+class TokenTypesMatcher
+  def initialize(match_type)
+    self.match_type = match_type
+  end
+
+  defm match(expected, actual)
+    unless len(expected) == len(actual)
+      return false
+    end
+
+    i = 0
+    for token in actual
+      expected_value = expected[i]
+      unless self.match_token(expected_value, token)
+        return false
+      end
+      i += 1
+    end
+
+    return true
+  end
+
+  defm match_token(expected_value, actual_value)
+    if self.match_type == 'type'
+      return expected_value == get_token_name(actual_value.type)
+    else
+      return expected_value == actual_value.value
+    end
+  end
+
+  defm failure_message_for_match(expected, actual)
+    msg = "Expected stream to be [#{self.get_quoted_stream(expected)}], "
+    msg .= "but was, [#{join(self.get_stream_types(actual), ', ')}]"
+    return msg
+  end
+
+  defm failure_message_for_mismatch(expected, actual)
+    msg = "Expected stream to not be [#{self.get_quoted_stream(expected)}], "
+    msg .= "but was, [#{join(self.get_stream_types(actual), ', ')}]"
+    return msg
+  end
+
+  defm get_quoted_stream(expected)
+    new_list = []
+    for item in expected
+      add(new_list, "'#{item}'")
+    end
+
+    return join(new_list, ', ')
+  end
+
+  defm get_stream_types(stream)
+    types = []
+    for token in stream
+      if self.match_type == 'type'
+        value = get_token_name(token.type)
+      else
+        value = token.value
+      end
+
+      add(types, "'#{value}'")
+    end
+
+    return types
+  end
+end
+
+matcher = new TokenMatcher()
+define_matcher('to_be_token', 'to_not_be_token', matcher)
+
+matcher = new TokenTypesMatcher('type')
+define_matcher('to_have_token_types', 'to_not_have_token_types', matcher)
+
+matcher = new TokenTypesMatcher('value')
+define_matcher('to_have_token_values', 'to_not_have_token_values', matcher)

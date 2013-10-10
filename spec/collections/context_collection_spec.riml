@@ -1,0 +1,63 @@
+riml_include 'dsl.riml'
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'json_parser.riml'
+riml_include 'trie.riml'
+riml_include 'inflections.riml'
+riml_include 'inflector.riml'
+riml_include 'projection_inc.riml'
+riml_include 'projection_collection.riml'
+riml_include 'context.riml'
+riml_include 'context_collection.riml'
+riml_include 'container.riml'
+riml_include 'extension_collection.riml'
+
+class ContextCollectionSpec
+  defm describe
+    return 'ContextCollectionSpec'
+  end
+
+  defm before_each
+    self.container = new Container({})
+    self.container.register('contexts', 'ContextCollection')
+    self.container.register('context', 'Context')
+    self.container.register('extensions', 'ExtensionCollection')
+    self.container.register('projections', 'ProjectionCollection')
+    self.contexts = self.container.lookup('contexts')
+  end
+
+  defm after_each
+    :unlet self.contexts
+  end
+
+  defm it_does_not_contain_context_initially
+    expect(self.contexts.contains('foo')).to_be_false()
+  end
+
+  defm it_can_store_contexts
+    dir = 'spec/projects/basic/'
+    result = self.contexts.add(dir)
+    expect(result).to_be_true()
+
+    expect(self.contexts.contains(dir)).to_be_true()
+    context = self.contexts.get(dir)
+
+    projections = context.get_projections()
+    portkeys = ["#{dir}portkey.json"]
+
+    expect(context.get_portkeys()).to_equal(portkeys)
+    expect(len(projections)).to_be_gte(1)
+  end
+
+  defm it_can_remove_contexts_after_load_y
+    dir = 'spec/projects/basic/'
+    self.contexts.add(dir)
+    expect(self.contexts.contains(dir)).to_be_true()
+
+    self.contexts.remove(dir)
+    expect(self.contexts.contains(dir)).to_be_false()
+  end
+
+end
+

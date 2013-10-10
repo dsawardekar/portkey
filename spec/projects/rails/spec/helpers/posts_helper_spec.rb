@@ -1,0 +1,2 @@
+describe PostsHelper do
+end

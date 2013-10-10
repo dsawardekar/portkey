@@ -1,0 +1,13 @@
+class JSONParser
+  " swallows errors, since Vim isn't going to give
+  " any meaningful errors for this hack
+  " use syntastic with jsonlint to make sure portkey.json is valid
+  defm parse(str)
+    try
+      result = eval(str)
+      return result
+    catch /.*/
+      return false
+    end
+  end
+end

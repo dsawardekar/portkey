@@ -1,0 +1,144 @@
+class Make
+  def initialize
+    self.bang = false
+    self.show_quickfix = true
+    self.mocked = false
+    self.use_dispatch_make = true
+    self.exec_cmd = ''
+    self.is_make = true
+  end
+
+  defm set_bang(bang)
+    self.bang = bang
+  end
+
+  defm get_bang
+    return self.bang
+  end
+
+  defm set_dir(dir)
+    self.dir = dir
+  end
+
+  defm get_dir
+    return self.dir
+  end
+
+  defm set_show_quickfix(show_quickfix)
+    self.show_quickfix = show_quickfix
+  end
+
+  defm get_show_quickfix
+    return self.show_quickfix
+  end
+
+  defm set_compiler(compiler)
+    self.compiler = compiler
+  end
+
+  defm get_compiler
+    return self.compiler
+  end
+
+  defm set_makeprg(makeprg)
+    self.makeprg = makeprg
+  end
+
+  defm get_makeprg
+    return self.makeprg
+  end
+
+  defm set_errorformat(errorformat)
+    self.errorformat = errorformat
+  end
+
+  defm get_errorformat
+    return self.errorformat
+  end
+
+  defm set_mocked(mocked)
+    self.mocked = mocked
+  end
+
+  defm get_mocked
+    return self.mocked
+  end
+
+  defm get_exec_cmd
+    return self.exec_cmd
+  end
+
+  defm set_use_dispatch_make(use_dispatch_make)
+    self.use_dispatch_make = use_dispatch_make
+  end
+
+  defm get_use_dispatch_make
+    return self.use_dispatch_make
+  end
+
+  defm make(*args)
+    env = new MakeEnv()
+
+    try
+      self.load_env()
+      self.run(args)
+    catch /.*/
+      caught_error = true
+    finally
+      env.restore()
+    end
+  end
+
+  defm load_env
+    if has_key(self, 'dir')
+      execute(":chdir #{self.dir}")
+    end
+
+    if has_key(self, 'compiler')
+      if !exists('g:speckle_mode')
+        execute(":compiler #{self.compiler}")
+      else
+        execute(":silent! compiler #{self.compiler}")
+      end
+    end
+
+    if has_key(self, 'makeprg')
+      &makeprg = self.makeprg
+    end
+
+    if has_key(self, 'errorformat')
+      &errorformat = self.errorformat
+    end
+  end
+
+  defm run(args)
+    make_args = join(args, ' ')
+    make_cmd = self.get_make_cmd()
+
+    cmd = ":#{make_cmd} #{make_args}"
+
+    if !self.mocked
+      execute(cmd)
+
+      if self.show_quickfix
+        :cwindow
+      end
+    else
+      self.exec_cmd = cmd
+    end
+  end
+
+  defm get_make_cmd
+    if exists(':Make') == 2 && self.get_use_dispatch_make()
+      cmd = 'Make'
+    else
+      cmd = 'make'
+    end
+
+    if self.get_bang()
+      cmd .= '!'
+    end
+
+    return cmd 
+  end
+end

@@ -1,0 +1,64 @@
+riml_include 'dsl.riml'
+riml_include 'environment.riml'
+
+class EnvironmentSpec
+  defm describe
+    return 'EnvironmentSpec'
+  end
+
+  defm before_each()
+    self.env = new Environment()
+  end
+
+  defm after_each()
+    :unlet self.env
+  end
+
+  defm it_can_load_default_options()
+    opts = { 'foo': 'foo-value' }
+    env = new Environment()
+    env.load_defaults(opts)
+
+    expect(env.get_option('foo')).to_equal('foo-value')
+  end
+
+  defm it_can_store_options()
+    self.env.set_option('foo', 'foo-value')
+    expect(self.env.get_option('foo')).to_equal('foo-value')
+  end
+
+  defm it_can_load_global_option()
+    g:portkey_lorem = 'lorem'
+    self.env.load_option('lorem')
+
+    expect(self.env.get_option('lorem')).to_equal('lorem')
+    :unlet g:portkey_lorem
+  end
+
+  defm it_can_load_global_options_for_defaults()
+    g:portkey_a = 'a'
+    g:portkey_b = 'b'
+    g:portkey_c = 'c'
+
+    opts = {}
+    opts.a = 'a-def'
+    opts.b = 'b-def'
+    opts.c = 'c-def'
+
+    self.env.load_defaults(opts)
+
+    expect(self.env.get_option('a')).to_equal('a-def')
+    expect(self.env.get_option('b')).to_equal('b-def')
+    expect(self.env.get_option('c')).to_equal('c-def')
+
+    self.env.load_options()
+
+    expect(self.env.get_option('a')).to_equal('a')
+    expect(self.env.get_option('b')).to_equal('b')
+    expect(self.env.get_option('c')).to_equal('c')
+
+    :unlet g:portkey_a
+    :unlet g:portkey_b
+    :unlet g:portkey_c
+  end
+end

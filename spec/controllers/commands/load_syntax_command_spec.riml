@@ -1,0 +1,45 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class LoadSyntaxCommandSpec
+  defm describe
+    return 'LoadSyntaxCommandSpec'
+  end
+
+  defm before_each
+    self.syntax_dir = 'spec'
+    self.old_rtp = "#{&rtp}"
+    &rtp = "#{self.syntax_dir},#{&rtp}"
+  end
+
+  defm after_each
+    &rtp = "#{self.old_rtp}"
+  end
+
+  defm it_can_load_syntax_files
+    d = new AppDriver()
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer('spec/projects/basic/foo.rb')
+    b.find_root()
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    " add syntax for models
+    contexts = d.lookup('contexts')
+    context = contexts.get(b.get_abs_root())
+    syntax_loader = context.lookup('syntax_loader')
+    syntax_loader.register('model', 'syntax/some_model_syntax.vim')
+
+    d.do_action('LoadSyntax')
+
+    " must have loaded syntax
+    expect(exists('g:loaded_model_syntax')).to_not_equal(0)
+    expect(g:loaded_model_syntax).to_equal('yes')
+  end
+end

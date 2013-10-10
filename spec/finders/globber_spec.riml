@@ -1,0 +1,49 @@
+riml_include 'dsl'
+riml_include 'log_helpers'
+riml_include 'projection_inc'
+riml_include 'globber'
+
+class GlobberSpec
+  defm it_can_build_recursive_pattern
+    g = new Globber()
+    expect(g.get_recursive_pattern('app/controllers/**.js')).to_equal('app/controllers/**/*.js')
+  end
+
+  defm it_can_build_glob_pattern
+    g = new Globber()
+    pa = new ProjectionPattern('app/controllers/**.js', {})
+    expect(g.get_glob_pattern(pa)).to_equal('app/controllers/**/*.js')
+  end
+
+  defm it_can_build_non_recursive_vim_pattern
+    g = new Globber()
+    pa = new ProjectionPattern('app/controllers/*.js', {})
+    expect(g.get_glob_pattern(pa)).to_equal('app/controllers/*.js')
+  end
+
+  defm it_can_glob_directory
+    g = new Globber()
+    root = fnamemodify('spec/projects/glob', ':p')
+    pattern = new ProjectionPattern('controllers/*.js', {})
+    r = g.glob(root, pattern)
+
+    sort(r)
+    expect(r[0]).to_match('login.js$')
+    expect(r[1]).to_match('logout.js$')
+  end
+
+  defm it_can_glob_recursively
+    g = new Globber()
+    root = fnamemodify('spec/projects/glob', ':p')
+    pattern = new ProjectionPattern('controllers/**.js', {})
+    r = g.glob(root, pattern)
+
+    sort(r)
+
+    expect(r[0]).to_match('dolor/index.js$')
+    expect(r[1]).to_match('ipsum/index.js$')
+    expect(r[2]).to_match('login.js$')
+    expect(r[3]).to_match('logout.js$')
+    expect(r[4]).to_match('lorem/index.js$')
+  end
+end

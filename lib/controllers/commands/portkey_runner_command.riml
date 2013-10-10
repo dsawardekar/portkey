@@ -1,0 +1,65 @@
+class PortkeyRunnerCommand < SwitchFileCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'PortkeyRunner'
+  end
+
+  defm get_aliases
+    return ['Run']
+  end
+
+  defm get_nargs
+    return '0'
+  end
+
+  defm get_bang
+    return true
+  end
+
+  defm has_ctrlp_mode
+    return false
+  end
+
+  defm get_completer
+    return false
+  end
+
+  defm get_finder_context
+    return 'test_finder_context'
+  end
+
+  defm get_launcher_strategies
+    return ['test_file_strategy']
+  end
+
+  " runs make instead of launching the file
+  defm launch(strategies, finder_context, options)
+    launcher = self.lookup('launcher')
+    launchable = launcher.run(strategies, finder_context, options)
+    projection = self.get_current_projection()
+
+    if !projection.has_compiler()
+      echo_error("No compiler found for: #{self.get_current_buffer_path()}")
+    elseif launchable.is_launchable
+      compiler = projection.get_compiler()
+      self.make(launchable.get_filepath(), compiler, options)
+    else
+      echo_error("No test found for: #{self.get_current_buffer_path()}")
+    end
+  end
+
+  defm make(file, compiler, options)
+    root = self.get_current_root()
+
+    make = self.lookup('make')
+    make.set_compiler(compiler)
+    make.set_dir(root)
+    make.set_bang(options.get_bang())
+
+    abs_file = "#{root}#{file}"
+    make.make(abs_file)
+  end
+end

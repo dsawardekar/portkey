@@ -1,0 +1,32 @@
+class ChangeCurrentBufferCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'ChangeCurrentBuffer'
+  end
+
+  defm run(buffer, opts)
+    self.lookup('buffers').set_current(buffer)
+
+    if self.buffer_has_context() && !self.buffer_has_enrolled()
+      " setup autocmds for this buffer
+      " MUST happen after current command has been set
+      " allows command registration to be implicitly customized
+      " to current buffer
+      self.process('LoadBufferExCmds')
+      buffer.set_enrolled(true)
+
+      " load mappings after the CtrlP mappings
+      " but only if ctrlp exists
+      self.process('LoadBufferMappings')
+
+      " load includeexpr
+      self.process('LoadGetFile')
+
+      " load syntax
+      self.process('LoadSyntax')
+    end
+  end
+end

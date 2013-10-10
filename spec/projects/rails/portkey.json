@@ -1,0 +1,36 @@
+{
+  "app/models/*.rb": {
+    "command": "model",
+    "test": "spec/models/%s_spec.rb",
+    "compiler": "rspec"
+  },
+  "spec/models/*_spec.rb": {
+    "command": "spec",
+    "alternate": "app/models/%s.rb",
+    "compiler": "rspec"
+  },
+  "app/controllers/*_controller.rb": {
+    "command": "controller",
+    "affinity": "collection",
+    "test": "spec/controllers/%s_controller_spec.rb",
+    "related": "app/helpers/%s_helper.rb",
+    "compiler": "rspec"
+  },
+  "spec/controllers/*_controller_spec.rb": {
+    "command": "spec",
+    "alternate": "app/controllers/%s_controller.rb",
+    "compiler": "rspec"
+  },
+  "app/helpers/*_helper.rb": {
+    "command": "helper",
+    "affinity": "collection",
+    "test": "spec/helpers/%s_helper_spec.rb",
+    "related": "app/controllers/%s_controller.rb",
+    "compiler": "rspec"
+  },
+  "spec/helpers/*_helper_spec.rb": {
+    "command": "spec",
+    "alternate": "app/helpers/%s_helper.rb",
+    "compiler": "rspec"
+  }
+}

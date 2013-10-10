@@ -1,0 +1,127 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'command_options.riml'
+
+class CommandOptionsSpec
+  defm it_can_store_args
+    o = new CommandOptions()
+    o.set_args(['a', 'b', 'c'])
+
+    expect(o.get_args()).to_equal(['a', 'b', 'c'])
+  end
+
+  defm it_can_store_count_of_args
+    o = new CommandOptions()
+    o.set_args(['a', 'b', 'c'])
+
+    expect(o.get_nargs()).to_equal(3)
+  end
+
+  defm it_can_calculate_params_from_Emodel_filename
+    o = new CommandOptions()
+    o.set_args(['post', { 'match': 'Emodel' }])
+
+    expect(o.get_filename()).to_equal('post')
+    expect(o.get_opts()).to_equal({'match': 'Emodel'})
+  end
+
+  defm it_can_calculate_params_from_Emodel
+    o = new CommandOptions()
+    o.set_args([{ 'match': 'Emodel' }])
+
+    expect(o.get_filename()).to_equal('')
+    expect(o.get_opts()).to_equal({'match': 'Emodel'})
+  end
+
+  defm it_can_calculate_params_from_Emodel_without_opts
+    o = new CommandOptions()
+    o.set_args([{}])
+
+    expect(o.get_filename()).to_equal('')
+    expect(o.get_opts()).to_equal({})
+  end
+
+  defm it_can_get_default_option_from_opts
+    o = new CommandOptions()
+    o.set_args([{'foo': 'bar'}])
+
+    expect(o.get_option('foo', '')).to_equal('bar')
+    expect(o.get_option('lorem', '')).to_equal('')
+  end
+
+  defm it_can_get_word_from_opts
+    o = new CommandOptions()
+    o.set_args([{'word': 'post'}])
+
+    expect(o.get_word()).to_equal('post')
+
+    o.set_args([{}])
+    expect(o.get_word()).to_equal('')
+  end
+
+  defm it_can_get_bang_from_opts
+    o = new CommandOptions()
+    o.set_args([{'bang': true}])
+
+    expect(o.get_bang()).to_be_true()
+
+    o.set_args([{}])
+    expect(o.get_bang()).to_be_false()
+  end
+
+  defm verify_window_mode(opts, expected)
+    o = new CommandOptions()
+    o.set_args(['post', opts])
+
+    expect(o.get_window_mode()).to_equal(expected)
+  end
+
+  defm it_can_calculate_window_mode_from_opts
+    " from ctrlp
+    self.verify_window_mode({'match': 'CtrlPmodel', 'mode': 'e'}, 'e')
+    self.verify_window_mode({'match': 'CtrlPmodel', 'mode': 's'}, 's')
+    self.verify_window_mode({'match': 'CtrlPmodel', 'mode': 'v'}, 'v')
+    self.verify_window_mode({'match': 'CtrlPmodel', 'mode': 't'}, 't')
+    self.verify_window_mode({'match': 'CtrlPmodel', 'mode': 'h'}, 'h')
+
+    " from ex mode Alternate style commands
+    self.verify_window_mode({'match': 'A'}, 'e')
+    self.verify_window_mode({'match': 'AE'}, 'e')
+    self.verify_window_mode({'match': 'AS'}, 's')
+    self.verify_window_mode({'match': 'AV'}, 'v')
+    self.verify_window_mode({'match': 'AT'}, 't')
+    self.verify_window_mode({'match': 'AD'}, 'd')
+
+    " from ex mode Resource style commands
+    self.verify_window_mode({'match': 'Emodel'}, 'e')
+    self.verify_window_mode({'match': 'Smodel'}, 's')
+    self.verify_window_mode({'match': 'Vmodel'}, 'v')
+    self.verify_window_mode({'match': 'Tmodel'}, 't')
+    self.verify_window_mode({'match': 'Dmodel'}, 'd')
+  end
+
+  defm it_can_calculate_window_mode_with_range
+    self.verify_window_mode({'match': 'Dmodel', 'range': [1, 2]}, 'e')
+  end
+
+  defm verify_resource_type(opts, expected)
+    o = new CommandOptions()
+    o.set_args([opts])
+
+    expect(o.get_resource_type()).to_equal(expected)
+  end
+
+  defm it_can_calculate_resource_type
+    self.verify_resource_type({'cmd_line': 'CtrlPmodel'}, 'model')
+    self.verify_resource_type({'match': 'Econtroller'}, 'controller')
+    self.verify_resource_type({}, 'unknown')
+  end
+
+  defm it_can_calculate_resource_type_with_range
+    self.verify_resource_type({'cmd_line': "'<,'>Emodel"}, 'model')
+  end
+
+  defm it_can_calculate_resource_type_with_count
+    self.verify_resource_type({'cmd_line': "5A"}, 'unknown')
+  end
+end

@@ -1,0 +1,104 @@
+riml_include 'dsl.riml'
+riml_include 'msg.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'projection_template.riml'
+riml_include 'projection_pattern.riml'
+
+class ProjectionPatternSpec
+  defm describe
+    return 'ProjectionPatternSpec'
+  end
+
+  defm it_has_original_pattern
+    p = new ProjectionPattern('foo', {})
+    expect(p.get_original()).to_equal('foo')
+  end
+
+  defm it_has_corresponding_projection
+    p = new ProjectionPattern('foo', {'is_projection': true})
+    expect(p.get_projection().is_projection).to_be_true()
+  end
+
+  defm it_can_escape_pattern_to_regex
+    regex = escape_regex('app/models/*.rb')
+    expect('app/models/foo.rb').to_match(regex)
+  end
+
+  defm it_can_escape_pattern_without_star_to_regex
+    regex = escape_regex('Rakefile')
+    res = matchlist('Rakefile', regex)
+    expect(len(res)).to_be_gte(2)
+    expect(res[1]).to_equal('Rakefile')
+  end
+
+  defm it_places_places_parenthesis_around_filename
+    regex = escape_regex('app/router.js')
+    res = matchlist('app/router.js', regex)
+    expect(len(res)).to_be_gte(2)
+    expect(res[1]).to_equal('router')
+  end
+
+  defm it_can_escape_only_star_pattern
+    regex = escape_regex('*')
+    res = matchlist('Gemfile.lock', regex)
+    expect(len(res)).to_be_gte(2)
+    expect(res[1]).to_equal('Gemfile')
+  end
+
+  defm it_does_not_modify_double_star_pattern
+    regex = escape_regex('app/controllers/**.js')
+    res = matchlist('app/controllers/foo/bar.js', regex)
+    expect(len(res)).to_be_gte(2)
+    expect(res[1]).to_equal('foo/bar')
+  end
+
+  defm it_knows_when_pattern_is_not_recursive_k
+    p = new ProjectionPattern('app/models/*.rb', {})
+    expect(p.is_recursive()).to_be_false()
+  end
+
+  defm it_knows_when_pattern_is_recursive
+    p = new ProjectionPattern('app/models/**.rb', {})
+    expect(p.is_recursive()).to_be_true()
+  end
+
+  defm it_can_return_regex_lazily
+    p = new ProjectionPattern('app/models/*.rb', {})
+    expect('app/models/foo.rb').to_match(p.get_regex())
+  end
+
+  defm it_does_not_rebuild_regex
+    p = new ProjectionPattern('app/models/*.rb', {})
+    re = p.get_regex()
+    p.original = 'app/controllers/*.rb'
+
+    new_re = p.get_regex()
+    expect(new_re).to_equal(re)
+    expect('app/controllers/foo.rb').to_not_match(p.get_regex())
+  end
+
+  defm it_can_store_template
+    p = new ProjectionPattern('app/models/*.rb', {})
+    expect(p.has_template()).to_be_false()
+    p.set_template('%s')
+
+    expect(p.has_template()).to_be_true()
+    expect(p.get_template().get_original()).to_equal('%s')
+  end
+
+  defm it_can_swap_filename_into_pattern
+    p = new ProjectionPattern('app/models/*.rb', {})
+    expect(p.swap('foo')).to_equal('app/models/foo.rb')
+  end
+
+  defm it_can_swap_filename_into_recursive_pattern
+    p = new ProjectionPattern('app/models/**.rb', {})
+    expect(p.swap('foo')).to_equal('app/models/foo.rb')
+  end
+
+  defm it_can_swap_filepath_into_recursive_pattern
+    p = new ProjectionPattern('app/models/**.rb', {})
+    expect(p.swap('lorem/ipsum')).to_equal('app/models/lorem/ipsum.rb')
+  end
+end

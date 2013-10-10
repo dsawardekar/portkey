@@ -1,0 +1,36 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+riml_include 'template_context.riml'
+riml_include 'data_frame.riml'
+riml_include 'launcher.riml'
+riml_include 'launchable_collection.riml'
+
+class LaunchableCollectionSpec
+  defm it_can_be_created
+    l = new LaunchableCollection()
+    expect(l.is_launchable_collection).to_be_true()
+  end
+
+  defm it_can_store_launchables
+    l = new LaunchableCollection()
+    l.add('lorem')
+    l.add('ipsum')
+
+    expect(l.size()).to_equal(2)
+  end
+
+  defm it_can_find_launchable
+    l = new LaunchableCollection()
+    l.add(new Launchable('post.rb', 'PickFileStrategy'))
+
+    expect(l.find('PickFileStrategy').get_filepath()).to_equal('post.rb')
+    expect(l.find('NoSuchFileStrategy').is_launchable).to_be_false()
+  end
+end

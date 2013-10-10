@@ -1,0 +1,478 @@
+riml_include 'dsl.riml'
+riml_include 'delegate.riml'
+riml_include 'log_helpers.riml'
+riml_include 'trie.riml'
+riml_include 'projection_inc.riml'
+riml_include 'projection_collection.riml'
+
+class ProjectionLoaderSpec
+  defm describe
+    return 'ProjectionLoaderSpec'
+  end
+
+  defm before_each
+    self.projection = new Projection('model')
+    self.loader = new ProjectionLoader(self.projection)
+  end
+
+  defm after_each
+    :unlet self.loader
+    :unlet self.projection
+  end
+
+  defm it_needs_a_projection
+    expect(self.loader).to_have_key('projection')
+  end
+
+  defm it_knows_if_projection_has_a_property
+    expect(self.loader.has_property('resource_type')).to_be_true()
+  end
+
+  defm it_does_not_change_property_if_present
+    self.loader.change_property('resource_type', 'controller')
+    expect(self.projection.get_resource_type()).to_equal('model')
+  end
+
+  defm it_does_change_property_if_not_already_set
+    self.loader.change_property('affinity', 'model')
+    expect(self.projection.get_affinity()).to_equal('model')
+  end
+
+  defm it_does_not_change_list_item_if_present
+    self.projection.add_keyword('lorem')
+    self.loader.change_list_item('keyword', 'lorem')
+
+    expect(self.loader.changed).to_be_false()
+  end
+
+  defm it_does_change_list_item_if_absent
+    self.loader.change_list_item('keyword', 'lorem')
+    expect(self.loader.changed).to_be_true()
+    expect(self.projection.get_keyword_list()).to_equal(['lorem'])
+  end
+
+  defm it_can_add_string_to_list_property
+    self.loader.change_list('keyword', 'lorem')
+    expect(self.projection.get_keyword_list()).to_equal(['lorem'])
+  end
+
+  defm it_can_add_list_of_strings_to_list_property
+    self.loader.change_list('keyword', ['lorem', 'ipsum'])
+    expect(self.projection.get_keyword_list()).to_equal(['lorem', 'ipsum'])
+  end
+
+  defm it_can_load_property_from_json
+    json = { 'command': 'model' }
+    self.loader.load_property('resource_type', 'command', json)
+    expect(self.projection.get_resource_type()).to_equal('model')
+  end
+
+  defm it_can_load_list_from_json
+    json = { 'keywords': ['lorem', 'ipsum'] }
+    self.loader.load_list('keyword', 'keywords', json)
+    expect(self.projection.get_keyword_list()).to_equal(['lorem', 'ipsum'])
+  end
+
+  defm it_can_load_list_from_string_in_json
+    json = { 'keywords': 'lorem' }
+    self.loader.load_list('keyword', 'keywords', json)
+    expect(self.projection.get_keyword_list()).to_equal(['lorem'])
+  end
+
+  defm it_can_load_resource_type_from_json
+    json = { 'type': 'model' }
+    self.loader.load_property('resource_type', 'type', json)
+    expect(self.projection.get_resource_type()).to_equal('model')
+  end
+
+  defm it_can_load_pattern_without_template
+    json = { 'type': 'model', 'pattern': 'app/models/*.rb' }
+    self.loader.load_pattern(json)
+
+    pattern = self.projection.get_patterns()[0]
+    expect(pattern.has_template()).to_be_false()
+  end
+
+  defm it_can_load_pattern_with_template
+    json = { 'type': 'model', 'pattern': 'app/models/*.rb', 'template': '%s' }
+    self.loader.load_pattern(json)
+
+    pattern = self.projection.get_patterns()[0]
+    expect(pattern.has_template()).to_be_true()
+    expect(pattern.get_template().get_original()).to_equal('%s')
+  end
+
+  defm it_can_load_scope_if_present
+    json = { 'scope': 'ember' }
+    expect(self.projection.has_scope()).to_be_false()
+    self.loader.load_property('scope', 'scope', json)
+
+    expect(self.projection.has_scope()).to_be_true()
+    expect(self.projection.get_scope()).to_equal('ember')
+  end
+
+  defm it_can_load_mapping_if_present
+    json = { 'mapping': 'M' }
+    self.loader.load_property('mapping', 'mapping', json)
+
+    expect(self.projection.has_mapping()).to_be_true()
+    expect(self.projection.get_mapping()).to_equal('M')
+  end
+
+  defm it_can_load_compiler_if_present
+    json = { 'compiler': 'rspec' }
+    self.loader.load_property('compiler', 'compiler', json)
+
+    expect(self.projection.has_compiler()).to_be_true()
+    expect(self.projection.get_compiler()).to_equal('rspec')
+  end
+
+  defm it_can_load_projection_json1
+    json = {}
+    json.pattern = 'app/models/*.rb'
+    json.type = 'model'
+    json.alternate = ['a1', 'a2']
+    json.related = ['r1', 'r2']
+    json.test = ['t1', 't2']
+    json.template = 'foo'
+    json.keywords = 'lorem ipsum dolor'
+    json.affinity = 'resource'
+    json.mapping = 'M'
+    json.compiler = 'rspec'
+    json.scope = 'ember'
+
+    self.loader.load(json)
+    p = self.projection
+
+    expect(p.get_resource_type()).to_equal('model')
+    expect(p.get_keyword_list()).to_equal(['lorem', 'ipsum', 'dolor'])
+
+    pattern = p.get_patterns()[0]
+    expect(pattern.get_template().get_original()).to_equal('foo')
+    expect(p.get_affinity()).to_equal('resource')
+    expect(p.get_mapping()).to_equal('M')
+    expect(p.get_compiler()).to_equal('rspec')
+    expect(p.get_scope()).to_equal('ember')
+
+    patterns = p.get_patterns()
+    pa = patterns[0]
+    expect(pa.get_original()).to_equal('app/models/*.rb')
+    expect('app/models/foo.rb').to_match(pa.get_regex())
+
+    verify_projection_templates(p, 'alternate', ['a1', 'a2'])
+    verify_projection_templates(p, 'related', ['r1', 'r2'])
+    verify_projection_templates(p, 'test', ['t1', 't2'])
+  end
+
+  defm it_can_merge_into_projection1
+    json = {}
+    json.pattern = 'app/models/*.rb'
+    json.command = 'model'
+    json.alternate = ['foo', 'bar']
+    json.related = ['r1', 'r2']
+    json.test = ['t1', 't2']
+    json.template = 'foo'
+    json.keywords = 'lorem ipsum dolor'
+    json.affinity = 'resource'
+    json.compiler = 'rspec'
+    json.scope = 'ember'
+
+    self.loader.load(json)
+
+    json = {}
+    json.pattern = 'app/models/foo/*.rb'
+    json.command = 'model'
+    json.alternate = ['foo', 'bar', 'lorem', 'ipsum']
+    json.related = ['r1', 'r2', 'r3', 'r4']
+    json.test = ['t1', 't2', 't3', 't4']
+    json.template = 'foo'
+    json.keywords = 'foo bar'
+    json.affinity = 'model'
+    json.compiler = 'ruby'
+    json.scope = 'ember'
+
+    self.loader.load(json)
+    p = self.projection
+
+    expect(p.get_resource_type()).to_equal('model')
+    verify_projection_templates(p, 'alternate', ['foo', 'bar', 'lorem', 'ipsum'])
+    verify_projection_templates(p, 'related', ['r1', 'r2', 'r3', 'r4'])
+    verify_projection_templates(p, 'test', ['t1', 't2', 't3', 't4'])
+    expect(p.get_keyword_list()).to_equal(['lorem', 'ipsum', 'dolor', 'foo', 'bar'])
+
+    pattern = p.get_patterns()[0]
+    expect(pattern.get_template().get_original()).to_equal('foo')
+    expect(p.get_affinity()).to_equal('resource')
+    expect(p.get_compiler()).to_equal('rspec')
+    expect(p.get_scope()).to_equal('ember')
+
+    patterns = p.get_patterns()
+
+    pa = patterns[0]
+    expect(pa.get_original()).to_equal('app/models/*.rb')
+    expect('app/models/foo.rb').to_match(pa.get_regex())
+
+    pa = patterns[1]
+    expect(pa.get_original()).to_equal('app/models/foo/*.rb')
+    expect('app/models/foo/bar.rb').to_match(pa.get_regex())
+  end
+end
+
+def verify_projection_templates(projection, type, expected)
+  templates = projection.get_projection_templates(type)
+  i = 0
+  for t in templates
+    expect(t.get_original()).to_equal(expected[i])
+    i += 1
+  end
+end
+
+def print_patterns(patterns)
+  for pattern in patterns
+    info(pattern.get_original())
+  end
+end
+
+def print_list(patterns)
+  for pattern in patterns
+    info(pattern)
+  end
+end
+
+def get_pattern_list(list)
+  l = []
+  for item in list
+    add(l, item.get_original())
+  end
+
+  return l
+end
+
+
+
+class ProjectionCollectionSpec
+
+  defm describe
+    return 'ProjectionCollectionSpec'
+  end
+
+  defm before_each
+    self.map = new ProjectionCollection()
+  end
+
+  defm after_each
+    :unlet self.map
+  end
+
+  defm it_can_store_projections_from_json
+    json = {}
+    json.pattern = 'app/models/*.rb'
+    json.command = 'model'
+    json.alternate = ['foo', 'bar']
+    json.related = ['r1', 'r2']
+    json.test = ['t1', 't2']
+    json.template = 'foo'
+    json.keywords = 'lorem ipsum dolor'
+    json.affinity = 'resource'
+    json.compiler = 'rspec'
+
+    self.map.add('model', json)
+
+    p = self.map.find_by_resource_type('model')
+
+    expect(p.get_resource_type()).to_equal('model')
+    verify_projection_templates(p, 'alternate', ['foo', 'bar'])
+    verify_projection_templates(p, 'related', ['r1', 'r2'])
+    verify_projection_templates(p, 'test', ['t1', 't2'])
+    expect(p.get_keyword_list()).to_equal(['lorem', 'ipsum', 'dolor'])
+
+    pattern = p.get_patterns()[0]
+    expect(pattern.get_template().get_original()).to_equal('foo')
+    expect(p.get_affinity()).to_equal('resource')
+    expect(p.get_compiler()).to_equal('rspec')
+  end
+
+  defm it_can_find_projections_for_resource_type
+    json = {}
+    json.command = 'model'
+    json.alternate = ['foo', 'bar']
+    json.related = ['r1', 'r2']
+    json.test = ['t1', 't2']
+    json.template = 'foo'
+    json.keywords = 'lorem ipsum dolor'
+    json.affinity = 'resource'
+
+    p = self.map.add('model', json)
+
+    result = self.map.find_by_resource_type('model')
+    expect(result).to_equal(p)
+  end
+
+  defm it_provides_a_list_of_all_projections
+    json = {}
+    json.command = 'model'
+    json.alternate = ['foo', 'bar']
+    json.related = ['r1', 'r2']
+    json.test = ['t1', 't2']
+    json.template = 'foo'
+    json.keywords = 'lorem ipsum dolor'
+    json.affinity = 'resource'
+
+    p = self.map.add('model', json)
+
+    result = self.map.get_projections()
+    expect(result).to_have_length(1)
+  end
+
+  defm it_provides_a_sorted_list_of_patterns_asc
+    self.add_projection('model', 'app/models/*_dolor.rb')
+    self.add_projection('model', 'app/models/ball/*.rb')
+    self.add_projection('model', 'app/models/apple/*.rb')
+    self.add_projection('model', 'app/models/cat/*.rb')
+    self.add_projection('model', 'app/models/*.rb')
+    self.add_projection('model', 'app/models/*_loremipsum.rb')
+
+    patterns = self.map.get_patterns('asc')
+    actual = get_pattern_list(patterns)
+
+    expected = []
+    add(expected, 'app/models/*.rb')
+    add(expected, 'app/models/*_dolor.rb')
+    add(expected, 'app/models/*_loremipsum.rb')
+    add(expected, 'app/models/apple/*.rb')
+    add(expected, 'app/models/ball/*.rb')
+    add(expected, 'app/models/cat/*.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+  defm it_provides_a_sorted_list_of_patterns_desc
+    self.add_projection('model', 'app/models/*_dolor.rb')
+    self.add_projection('model', 'app/models/cat/*.rb')
+    self.add_projection('model', 'app/models/*_loremipsum.rb')
+    self.add_projection('model', 'app/models/apple/*.rb')
+    self.add_projection('model', 'app/models/*.rb')
+    self.add_projection('model', 'app/models/ball/*.rb')
+
+    patterns = self.map.get_patterns('desc')
+    actual = get_pattern_list(patterns)
+
+    expected = []
+    add(expected, 'app/models/cat/*.rb')
+    add(expected, 'app/models/ball/*.rb')
+    add(expected, 'app/models/apple/*.rb')
+    add(expected, 'app/models/*_loremipsum.rb')
+    add(expected, 'app/models/*_dolor.rb')
+    add(expected, 'app/models/*.rb')
+
+    expect(actual).to_equal(expected)
+  end
+
+  defm it_can_match_patterns_scenario1
+    self.map = new ProjectionCollection()
+
+    self.add_projection('model', 'app/models/*_dolor.rb')
+    self.add_projection('model', 'app/models/cat/*.rb')
+    self.add_projection('model', 'app/models/*_loremipsum.rb')
+    self.add_projection('model', 'app/models/apple/*.rb')
+    self.add_projection('model', 'app/models/*.rb')
+    self.add_projection('model', 'app/models/ball/*.rb')
+
+    self.verify_match('app/models/aaa.rb', 'aaa', 'app/models/*.rb')
+    self.verify_match('app/models/bbb_dolor.rb', 'bbb', 'app/models/*_dolor.rb')
+    self.verify_match('app/models/ccc_loremipsum.rb', 'ccc', 'app/models/*_loremipsum.rb')
+    self.verify_match('app/models/apple/ddd.rb', 'ddd', 'app/models/apple/*.rb')
+    self.verify_match('app/models/ball/eee.rb', 'eee', 'app/models/ball/*.rb')
+    self.verify_match('app/models/cat/fff.rb', 'fff', 'app/models/cat/*.rb')
+  end
+
+  defm verify_match(path, source, pattern)
+    match = self.map.match(path)
+
+    expect(match.ok).to_be_true()
+    expect(match.source).to_equal(source)
+    expect(match.pattern.get_original()).to_equal(pattern)
+  end
+
+  defm it_can_provide_distinct_mappings_for_projections
+    self.add_projection('model', 'app/models/*.rb')
+    self.add_projection('view', 'app/views/*.rb')
+    self.add_projection('controller', 'app/controllers/*.rb')
+    self.add_projection('component', 'app/components/*.rb')
+    self.add_projection('helper', 'app/helpers/*.rb')
+    self.add_projection('test', 'test/models/*.rb')
+    self.add_projection('spec', 'spec/models/*.rb')
+
+    m = self.map.get_mappings()
+    sort(m, create_delegate(self, 'sort_mappings'))
+
+    self.verify_mapping(m, 0, 'cm', 'component')
+    self.verify_mapping(m, 1, 'cn', 'controller')
+    self.verify_mapping(m, 2, 'h', 'helper')
+    self.verify_mapping(m, 3, 'm', 'model')
+    self.verify_mapping(m, 4, 's', 'spec')
+    self.verify_mapping(m, 5, 't', 'test')
+    self.verify_mapping(m, 6, 'v', 'view')
+  end
+
+  defm sort_mappings(a, b)
+    a_value = a.value
+    b_value = b.value
+
+    return a_value > b_value
+  end
+
+  defm verify_mapping(mappings, index, key, resource_type)
+    mapping = mappings[index]
+    value = mapping.value
+    projection = mapping.source
+
+    expect(value).to_equal(key)
+    expect(projection.get_resource_type()).to_equal(resource_type)
+  end
+
+  defm add_projection(resource_type, pattern)
+    json = { 'command': resource_type, 'pattern': pattern }
+    self.map.add(resource_type, json)
+  end
+
+end
+
+class ProjectionLoaderPerfSpec
+  defm describe
+    return 'ProjectionLoaderPerfSpec'
+  end
+
+  defm before
+    self.portkey = []
+    self.map = new ProjectionCollection()
+
+    for i in range(1, 100)
+      json = {}
+      json.pattern = 'app/models/*.rb'
+      json.command = 'model#{i}'
+      json.alternate = ['app/models/%s_controller.rb', 'app/foo/%S.rb']
+      json.related = ['app/rel/%s_controller.rb', 'app/foo/%S.rb']
+      json.test = ['t1', 't2']
+      json.template = 'foo'
+      json.keywords = 'lorem ipsum dolor'
+      json.affinity = 'resource'
+      json.compiler = 'rspec'
+
+      add(self.portkey, json)
+    end
+  end
+
+  defm after
+    :unlet self.portkey
+  end
+
+  " ~50ms for 100 projections should be ok
+  " the key is the eval of readfile'd json
+  defm it_can_store_projections_from_json_perf
+    for json in self.portkey
+      self.map.add('foo', json)
+    end
+  end
+end
+

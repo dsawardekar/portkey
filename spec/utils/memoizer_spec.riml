@@ -1,0 +1,224 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'object_cache.riml'
+riml_include 'memoizer.riml'
+
+class MockMemoizerTarget
+  defm run(...)
+    self.args = a:000
+    return self.args
+  end
+end
+
+class MockMemoizer
+  defm memoizer_is_active
+    return self.active
+  end
+end
+
+class MockMemoizerCache
+  def initialize
+    self.hits = 0
+    self.misses = 0
+  end
+
+  defm get_key(args)
+    return self.key
+  end
+
+  defm has(key)
+    return has_key(self, 'value')
+  end
+
+  defm get(key)
+    self.hits += 1
+    return self.value
+  end
+
+  defm put(key, value)
+    self.misses += 1
+    self.value = value
+  end
+end
+
+class MemoizerDelegateSpec
+  defm describe
+    return 'MemoizerDelegateSpec'
+  end
+
+  defm it_can_convert_args_to_a_key
+    delegate = new MemoizerDelegate({}, 'run', {}, {})
+    expect(delegate.get_key(['hello'])).to_match('hello')
+  end
+
+  defm it_has_valid_key_for_empty_args
+    delegate = new MemoizerDelegate({}, 'run', {}, {})
+    expect(delegate.get_key([])).to_match('memoizer')
+  end
+
+  defm it_can_invoke_target_method
+    mock_target = new MockMemoizerTarget()
+    mock_memoizer = new MockMemoizer()
+    mock_memoizer.active = true
+
+    mock_cache = new MockMemoizerCache()
+    mock_cache.key = 'foo'
+
+    delegate = new MemoizerDelegate(mock_target, 'run', mock_cache, mock_memoizer)
+
+    expect(mock_cache.has('foo')).to_be_false()
+
+    result = delegate.invoke('lorem', 'ipsum', 'dolor')
+    expect(mock_target.args).to_equal(['lorem', 'ipsum', 'dolor'])
+    expect(mock_cache.get('foo')).to_equal(['lorem', 'ipsum', 'dolor'])
+  end
+
+  defm it_does_not_use_cache_if_memoizer_is_inactive
+    mock_target = new MockMemoizerTarget()
+    mock_memoizer = new MockMemoizer()
+    mock_memoizer.active = false
+
+    mock_cache = new MockMemoizerCache()
+    mock_cache.key = 'foo'
+
+    delegate = new MemoizerDelegate(mock_target, 'run', mock_cache, mock_memoizer)
+
+    expect(mock_cache.has('foo')).to_be_false()
+
+    result = delegate.invoke('lorem', 'ipsum', 'dolor')
+    expect(mock_target.args).to_equal(['lorem', 'ipsum', 'dolor'])
+    expect(mock_cache.has('foo')).to_be_false()
+  end
+
+  defm it_uses_cached_results
+    mock_target = new MockMemoizerTarget()
+    mock_memoizer = new MockMemoizer()
+    mock_memoizer.active = true
+
+    mock_cache = new MockMemoizerCache()
+    mock_cache.key = 'foo'
+
+    delegate = new MemoizerDelegate(mock_target, 'run', mock_cache, mock_memoizer)
+
+    result = delegate.invoke('lorem', 'ipsum', 'dolor')
+    expect(mock_cache.misses).to_equal(1)
+
+    i = 0
+    while i < 10
+      result = delegate.invoke('lorem', 'ipsum', 'dolor')
+      expect(result).to_equal(['lorem', 'ipsum', 'dolor'])
+
+      i += 1
+    end
+
+    expect(mock_cache.hits).to_equal(10)
+    expect(mock_cache.misses).to_equal(1)
+  end
+
+  defm it_returns_different_results_for_different_args
+    mock_target = new MockMemoizerTarget()
+    mock_memoizer = new MockMemoizer()
+    mock_memoizer.active = true
+
+    cache = new ObjectCache()
+
+    delegate = new MemoizerDelegate(mock_target, 'run', cache, mock_memoizer)
+
+    result1 = delegate.invoke('lorem', 5, 'dolor')
+    result2 = delegate.invoke('lorem', 'ipsum')
+    result3 = delegate.invoke()
+
+    expect(result1).to_equal(['lorem', 5, 'dolor'])
+    expect(result2).to_equal(['lorem', 'ipsum'])
+    expect(result3).to_equal([])
+  end
+end
+
+class SampleTarget
+  defm sum(...)
+    total = 0
+    i = 0
+    n = len(a:000)
+    while i < n
+      total += a:000[i]
+      i += 1
+    end
+
+    return total
+  end
+
+  defm total(...)
+    return call(self['sum'], a:000, self)
+  end
+end
+
+class MemoizerSpec
+  defm describe
+    return 'MemoizerSpec'
+  end
+
+  defm it_can_memoize_single_method
+    target = new SampleTarget()
+    memoizer = new Memoizer(target)
+    memoizer.memoizer_load_method('sum')
+    memoizer.memoizer_start()
+
+    expect(memoizer.sum(1, 2)).to_equal(3)
+  end
+
+  defm it_can_memoize_multiple_methods
+    target = new SampleTarget()
+    memoizer = new Memoizer(target)
+    memoizer.memoizer_load('sum', 'total')
+    memoizer.memoizer_start()
+
+    expect(memoizer.sum(1, 2)).to_equal(3)
+    expect(memoizer.total(1, 2)).to_equal(3)
+  end
+
+  defm it_can_memoize_all_methods
+    target = new SampleTarget()
+    memoizer = new Memoizer(target)
+    memoizer.memoizer_load_all()
+    memoizer.memoizer_start()
+
+    expect(memoizer.sum(1, 2)).to_equal(3)
+    expect(memoizer.total(1, 2)).to_equal(3)
+  end
+
+  defm it_uses_cached_results_focus
+    target = new SampleTarget()
+    memoizer = new Memoizer(target)
+    memoizer.memoizer_load_all()
+    memoizer.memoizer_start()
+
+    memoizer.sum(1, 2)
+    expect(memoizer.memoizer_get_misses()).to_equal(1)
+    expect(memoizer.memoizer_get_hits()).to_equal(0)
+
+    for i in range(1, 10)
+      expect(memoizer.sum(1, 2)).to_equal(3)
+    end
+
+    expect(memoizer.memoizer_get_hits()).to_equal(10)
+  end
+
+  defm it_does_not_use_cached_results_if_inactive
+    target = new SampleTarget()
+    memoizer = new Memoizer(target)
+    memoizer.memoizer_load_all()
+    memoizer.memoizer_start()
+    memoizer.memoizer_stop()
+
+    memoizer.sum(1, 2)
+    expect(memoizer.memoizer_get_misses()).to_equal(0)
+    expect(memoizer.memoizer_get_hits()).to_equal(0)
+
+    for i in range(1, 10)
+      expect(memoizer.sum(1, 2)).to_equal(3)
+    end
+
+    expect(memoizer.memoizer_get_hits()).to_equal(0)
+  end
+end

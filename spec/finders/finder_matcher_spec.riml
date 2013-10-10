@@ -1,0 +1,272 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'finder_matcher.riml'
+
+class FinderMatcherSpec
+  defm describe
+    return 'FinderMatcherSpec'
+  end
+
+  defm it_can_shorten_results
+    results = []
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+
+    f = new FinderMatcher()
+    r = f.shorten(results)
+
+    expect(r).to_equal(['post', 'comment', 'author'])
+  end
+
+  defm it_can_shorten_results_with_nested_models
+    results = []
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+    add(results, 'app/models/admin/post.rb')
+    add(results, 'app/models/admin/comment.rb')
+    add(results, 'app/models/admin/author.rb')
+
+    f = new FinderMatcher()
+    r = f.shorten(results)
+
+    expect(r).to_equal(['post', 'comment', 'author', 'admin/post', 'admin/comment', 'admin/author'])
+  end
+
+  defm it_can_shorten_results_with_controller
+    results = []
+
+    add(results, 'lib/controllers/command_options.riml')
+    add(results, 'lib/controllers/controller.riml')
+
+    f = new FinderMatcher()
+    r = f.shorten(results)
+
+    expect(r).to_equal(['command_options', 'controller'])
+  end
+
+  defm it_can_shorten_results_with_distinct_extensions_c
+    results = []
+
+    add(results, 'lib/controllers/Gemfile')
+    add(results, 'lib/controllers/Gemfile.lock')
+
+    f = new FinderMatcher()
+    r = f.shorten(results)
+
+    expect(r).to_equal(['Gemfile', 'Gemfile.lock'])
+  end
+
+  defm verify_common_extension(results, expected)
+    f = new FinderMatcher()
+    r = f.find_common_extension(results)
+
+    expect(r).to_equal(expected)
+  end
+
+  defm it_can_find_common_extension_when_present
+    results = []
+
+    add(results, 'lib/controllers/command_options.riml')
+    add(results, 'lib/controllers/controller.riml')
+
+    self.verify_common_extension(results, 'riml')
+  end
+
+  defm it_can_find_common_extension_when_absent
+    results = []
+
+    add(results, 'lib/controllers/command_options.riml')
+    add(results, 'lib/controllers/controller.rb')
+
+    self.verify_common_extension(results, '')
+  end
+
+  defm it_can_find_common_extension_for_one_result
+    results = []
+
+    add(results, 'lib/controllers/command_options.riml')
+
+    self.verify_common_extension(results, 'riml')
+  end
+
+  defm it_can_find_common_extension_for_empty
+    results = []
+
+    self.verify_common_extension(results, '')
+  end
+
+
+  defm it_can_compare_filenames_a_lt_b
+    a = 'post'
+    b = 'delete_undo_post'
+
+    f = new FinderMatcher()
+    expect(f.compare_filenames(a, b)).to_be_lte(-1)
+  end
+
+  defm it_can_compare_filenames_a_gt_b
+    a = 'delete_undo_post'
+    b = 'post'
+
+    f = new FinderMatcher()
+    expect(f.compare_filenames(a, b)).to_be_gte(1)
+  end
+
+  defm it_can_sort_results
+    r = ['delete_post_undo', 'post']
+    f = new FinderMatcher()
+
+    f.sort(r)
+    expect(r).to_equal(['post', 'delete_post_undo'])
+  end
+
+  defm it_can_match_filename_to_result
+    results = []
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+
+    f = new FinderMatcher()
+    m = f.match('comment', results)
+
+    expect(m).to_equal('app/models/comment.rb')
+  end
+
+  defm it_returns_empty_string_if_match_not_found
+    results = []
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+
+    f = new FinderMatcher()
+    m = f.match('user', results)
+
+    expect(m).to_equal('')
+  end
+
+  defm it_matches_correct_file_with_overlapping_names
+    results = []
+    add(results, 'app/models/post_undo_model.rb')
+    add(results, 'app/models/comment_author.rb')
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+
+    f = new FinderMatcher()
+
+    m = f.match('post', results)
+    expect(m).to_equal('app/models/post.rb')
+
+    m = f.match('post_undo_model', results)
+    expect(m).to_equal('app/models/post_undo_model.rb')
+
+    m = f.match('post', results)
+    expect(m).to_equal('app/models/post.rb')
+  end
+
+  defm it_matches_correct_file_with_distinct_extensions
+    results = []
+    add(results, 'Gemfile')
+    add(results, 'Gemfile.lock')
+
+    f = new FinderMatcher()
+
+    m = f.match('Gemfile.lock', results)
+    expect(m).to_equal('Gemfile.lock')
+
+    m = f.match('Gemfile', results)
+    expect(m).to_equal('Gemfile')
+  end
+
+  defm it_matches_correct_file_with_nested_models
+    results = []
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+    add(results, 'app/models/admin/post.rb')
+    add(results, 'app/models/admin/comment.rb')
+    add(results, 'app/models/admin/author.rb')
+
+    f = new FinderMatcher()
+
+    m = f.match('admin/post', results)
+    expect(m).to_equal('app/models/admin/post.rb')
+
+    m = f.match('admin/comment', results)
+    expect(m).to_equal('app/models/admin/comment.rb')
+
+    m = f.match('admin/author', results)
+    expect(m).to_equal('app/models/admin/author.rb')
+
+    m = f.match('post', results)
+    expect(m).to_equal('app/models/post.rb')
+
+    m = f.match('comment', results)
+    expect(m).to_equal('app/models/comment.rb')
+
+    m = f.match('author', results)
+    expect(m).to_equal('app/models/author.rb')
+
+  end
+
+  defm it_can_find_common_parent_of_models
+    results = []
+    add(results, 'app/models/post_undo_model.rb')
+    add(results, 'app/models/comment_author.rb')
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+
+    f = new FinderMatcher()
+    parent = f.find_common_parent(results)
+
+    expect(parent).to_equal('app/models/')
+  end
+
+  defm it_can_find_common_parent_of_nested_models
+    results = []
+    add(results, 'app/models/post_undo_model.rb')
+    add(results, 'app/models/comment_author.rb')
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+    add(results, 'app/models/admin/post_undo_model.rb')
+    add(results, 'app/models/admin/comment_author.rb')
+    add(results, 'app/models/admin/post.rb')
+    add(results, 'app/models/admin/comment.rb')
+    add(results, 'app/models/admin/author.rb')
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+    add(results, 'app/models/admin/post.rb')
+    add(results, 'app/models/admin/comment.rb')
+    add(results, 'app/models/admin/author.rb')
+
+    f = new FinderMatcher()
+    parent = f.find_common_parent(results)
+
+    expect(parent).to_equal('app/models/')
+  end
+
+  defm it_can_find_common_parent_of_models_and_controllers
+    results = []
+    add(results, 'app/models/post_undo_model.rb')
+    add(results, 'app/models/comment_author.rb')
+    add(results, 'app/models/post.rb')
+    add(results, 'app/models/comment.rb')
+    add(results, 'app/models/author.rb')
+    add(results, 'app/controllers/post_undo_model.rb')
+    add(results, 'app/controllers/comment_author.rb')
+    add(results, 'app/controllers/post.rb')
+    add(results, 'app/controllers/comment.rb')
+    add(results, 'app/controllers/author.rb')
+
+    f = new FinderMatcher()
+    parent = f.find_common_parent(results)
+
+    expect(parent).to_equal('app/')
+  end
+end

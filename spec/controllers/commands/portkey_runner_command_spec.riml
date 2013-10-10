@@ -1,0 +1,94 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class PortkeyRunnerCommandSpec
+  defm describe
+    return 'PortkeyRunnerCommandSpec'
+  end
+
+  defm before
+    self.cwd = getcwd()
+  end
+
+  defm before_each
+    self.driver = new AppDriver()
+  end
+
+  defm after_each
+    :unlet self.driver
+  end
+
+  defm after
+    execute(":chdir #{self.cwd}")
+  end
+
+  defm verify_runner(from_buffer, expected)
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer(from_buffer)
+    b.find_root()
+
+    o = d.lookup('file_opener')
+    o.set_exec_mode(false)
+
+    " open and enter buffer
+    d.do_buffer_open(b)
+    d.do_buffer_enter(b)
+
+    contexts = d.lookup('contexts')
+    context = contexts.get(b.get_abs_root())
+    make = context.lookup('make')
+
+    make.set_mocked(true)
+
+    " PortkeyRunner with 'from'
+    d.do_autocmd('PortkeyRunner')
+
+    exec_cmd = make.exec_cmd
+    if type(expected) == type('')
+      expect(exec_cmd).to_match(expected)
+    else
+      expect(exec_cmd).to_equal('')
+    end
+  end
+
+  defm it_wont_test_anything_if_test_not_found
+    rails = 'spec/projects/rails/'
+    " since portkey.json has no test
+    self.verify_runner("#{rails}portkey.json", false)
+  end
+
+  defm it_can_test_model_from_model
+    rails = 'spec/projects/rails/'
+    self.verify_runner("#{rails}app/models/post.rb", 'post_spec.rb')
+  end
+
+  defm it_can_test_model_from_spec
+    rails = 'spec/projects/rails/'
+    self.verify_runner("#{rails}spec/models/post_spec.rb", 'post_spec.rb')
+  end
+
+  defm it_can_test_controller_from_controller
+    rails = 'spec/projects/rails/'
+    self.verify_runner("#{rails}app/controllers/posts_controller.rb", 'posts_controller_spec.rb')
+  end
+
+  defm it_can_test_controller_from_spec
+    rails = 'spec/projects/rails/'
+    self.verify_runner("#{rails}spec/controllers/posts_controller_spec.rb", 'posts_controller_spec.rb')
+  end
+
+  defm it_can_test_helper_from_helper
+    rails = 'spec/projects/rails/'
+    self.verify_runner("#{rails}app/helpers/posts_helper.rb", 'posts_helper_spec.rb')
+  end
+
+  defm it_can_test_helper_from_spec
+    rails = 'spec/projects/rails/'
+    self.verify_runner("#{rails}spec/helpers/posts_helper_spec.rb", 'posts_helper_spec.rb')
+  end
+end

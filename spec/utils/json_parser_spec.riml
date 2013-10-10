@@ -1,0 +1,54 @@
+riml_include 'dsl.riml'
+riml_include 'json_parser.riml'
+
+class JSONParserSpec
+  defm describe
+    return 'JSONParserSpec'
+  end
+
+  defm load_file(path)
+    lines = readfile(path)
+    return join(lines, ' ')
+  end
+
+  defm before
+    self.parser = new JSONParser()
+  end
+
+  defm after
+    :unlet self.parser
+  end
+
+  defm it_can_parse_simple_json
+    str = '{ "foo": "test" }'
+    json = self.parser.parse(str)
+    expect(json.foo).to_equal('test')
+  end
+
+  defm it_can_parse_arrays
+    str = '{ "foo": ["a", "b", "c"] }'
+    json = self.parser.parse(str)
+
+    expect(json.foo).to_equal(["a", "b", "c"])
+  end
+
+  defm it_can_parse_objects
+    str = '{ "foo": { "a": "1", "b": { "c": { "d": "test" } } } }'
+    json = self.parser.parse(str)
+
+    expect(json.foo.a).to_equal('1')
+    expect(json.foo.b.c.d).to_equal('test')
+  end
+
+  defm it_returns_false_for_invalid_json
+    str = '{ "foo": '
+    json = self.parser.parse(str)
+    expect(json).to_be_false()
+  end
+
+  defm it_can_parse_json_from_a_file
+    str = self.load_file('portkey.json')
+    json = self.parser.parse(str)
+    expect(len(keys(json))).to_be_gt(0)
+  end
+end

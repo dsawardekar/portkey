@@ -1,0 +1,152 @@
+class Buffer
+  def initialize(path)
+    self.root_marker = 'portkey.json'
+    self.path = path
+    self.root = ''
+    self.did_search = false
+    self.enrolled = false
+    self.configured = false
+  end
+
+  defm has_root
+    if self.did_search
+      return self.root != ''
+    else
+      return self.find_root()
+    end
+  end
+
+  defm find_root
+    parent_dir = fnamemodify(self.path, ':p:h')
+    portkey_json = findfile(self.root_marker, "#{parent_dir};")
+    self.did_search = true
+
+    if portkey_json != ''
+      self.root = fnamemodify(portkey_json, ':h')
+      return true
+    end
+
+    return false
+  end
+
+  defm get_path
+    return self.path
+  end
+
+  defm get_portkey_path
+    path = "#{self.get_abs_root()}portkey.json"
+    return fnamemodify(path, ':.')
+  end
+
+  defm get_portkey_display_path(*opts)
+    if len(opts) == 0
+      portkey_path = self.get_portkey_path()
+    else
+      portkey_path = opts[0]
+    end
+
+    parent_dir = fnamemodify(portkey_path, ':p:h:t')
+    portkey_name = fnamemodify(portkey_path, ':t')
+
+    return "#{parent_dir}/#{portkey_name}"
+  end
+
+  defm get_abs_portkey_path
+    return fnamemodify(self.get_portkey_path(), ':p')
+  end
+
+  defm get_root
+    unless self.did_search
+      result = self.find_root()
+      " KLUDGE: should never get here
+      " Throw an error to help debug if we do
+      " Only happens in tests with psuedo buffers
+      unless result
+        throw 'Portkey not found for #{self.path}, use has_root before get_root'
+      end
+    end
+
+    return self.root
+  end
+
+  defm get_abs_root
+    unless has_key(self, 'abs_root')
+      self.abs_root = fnamemodify(self.root, ':p')
+    end
+
+    return self.abs_root
+  end
+
+  defm get_abs_path
+    unless has_key(self, 'abs_path')
+      self.abs_path = fnamemodify(self.path, ':p')
+    end
+
+    return self.abs_path
+  end
+
+  defm get_rel_path
+    unless has_key(self, 'rel_path')
+      self.rel_path = substitute(self.get_abs_path(), "#{self.get_abs_root()}", '', '')
+    end
+
+    return self.rel_path
+  end
+
+  defm get_rootname
+    return fnamemodify(self.get_path(), ':t:r')
+  end
+
+  defm get_filename
+    return fnamemodify(self.get_path(), ':t')
+  end
+
+  defm reset
+    if has_key(self, 'match')
+      :unlet self.match
+    end
+    self.enrolled = false
+    self.configured = false
+  end
+
+  defm set_match(match)
+    self.match = match
+    self.configured = true
+  end
+
+  defm get_match
+    return self.match
+  end
+
+  defm has_projection
+    return has_key(self, 'match')
+  end
+
+  defm get_projection
+    return self.get_match().get_pattern().get_projection()
+  end
+
+  defm get_source
+    return self.get_match().source
+  end
+
+  defm get_pattern
+    return self.get_match().pattern
+  end
+
+  defm set_enrolled(enrolled)
+    self.enrolled = enrolled
+  end
+
+  defm get_enrolled
+    return self.enrolled
+  end
+
+  defm set_configured(configured)
+    self.configured = configured
+  end
+
+  defm get_configured
+    return self.configured
+  end
+end

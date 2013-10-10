@@ -1,0 +1,42 @@
+class Extension
+  " display name of extension
+  defm get_name
+  end
+
+  " abs path to the extension's portkey
+  defm get_portkey_path(type, variant)
+  end
+
+  " default scope name of projections for this extension
+  defm get_scope
+  end
+
+  " finders and rankers
+  " type
+  " - projection
+  " - resource
+  " - file
+  defm get_finder(type)
+  end
+
+  defm get_ranker(type)
+  end
+
+  defm get_syntax_files()
+  end
+
+  " configure inflector
+  defm configure_inflector(inflector)
+  end
+
+  defm configure_projection(projection)
+  end
+
+  " quibbler custom filters
+  defm get_filters()
+  end
+
+  " extractors
+  defm get_extractors()
+  end
+end

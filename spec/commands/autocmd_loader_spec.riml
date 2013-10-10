@@ -1,0 +1,55 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'autocmd_loader.riml'
+
+class AutocmdLoaderSpec
+  defm it_can_store_group_name
+    loader = new AutocmdLoader()
+    loader.set_group_name("foo")
+    expect(loader.get_group_name()).to_equal('foo')
+  end
+
+  defm it_can_store_commands
+    loader = new AutocmdLoader()
+    loader.set_group_name("test_store")
+    loader.cmd('BufNew *.foo :echo "foo"')
+    loader.cmd('BufEnter *.bar :echo "bar"')
+
+    expect(loader.size()).to_equal(2)
+    loader.unload()
+  end
+
+  defm it_can_load_auto_commands
+    loader = new AutocmdLoader()
+    loader.set_group_name("test_store")
+
+    delegate = new_delegate(self, 'on_test_load')
+    loader.cmd("User test_load :call #{delegate}(1, 2, 3)")
+    loader.load()
+
+    :doautocmd User test_load
+    expect(self.test_load_args).to_equal([1, 2, 3])
+    loader.unload()
+  end
+
+  defm it_can_unload_auto_commands
+    loader = new AutocmdLoader()
+    loader.set_group_name("test_unload")
+
+    delegate = new_delegate(self, 'on_test_load')
+    loader.cmd("User test_unload :call #{delegate}(1, 2, 3)")
+    loader.load()
+
+    :doautocmd User test_unload
+    expect(self.test_load_args).to_equal([1, 2, 3])
+
+    self.test_load_args = ['null']
+    loader.unload()
+    expect(self.test_load_args).to_equal(['null'])
+  end
+
+  defm on_test_load(*args)
+    self.test_load_args = args
+  end
+end

@@ -1,0 +1,23 @@
+class Completer
+  defm needs
+    return ['finder_facade']
+  end
+
+  defm complete(finder_context, options)
+    query_type = finder_context.get_query_type(options)
+    template_context = finder_context.get_template_context(options)
+
+    results = self.finder_facade.find(query_type, template_context)
+    return self.filter(results, options)
+  end
+
+  defm filter(results, options)
+    word = options.get_word()
+
+    if word != ''
+      return filter(results, "v:val =~ '^#{word}'")
+    else
+      return results
+    end
+  end
+end

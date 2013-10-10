@@ -1,0 +1,46 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'file_opener.riml'
+
+class FileOpenerSpec
+  defm describe
+    return 'FileOpenerSpec'
+  end
+
+  defm it_has_correct_defaults
+    o = new FileOpener()
+
+    expect(o.get_mkdir_mode()).to_be_true()
+  end
+
+  defm verify_file_open(file, mode, pattern)
+    o = new FileOpener()
+    o.set_mkdir_mode(false)
+    o.set_exec_mode(false)
+
+    o.open(file, mode)
+    expect(o.exec_cmd).to_match(':' . pattern)
+    expect(o.exec_cmd).to_match(file)
+  end
+
+  defm it_can_open_in_same_window
+    self.verify_file_open('foo.rb', 'e', 'edit')
+  end
+
+  defm it_can_open_in_horizontal_split
+    self.verify_file_open('foo.rb', 'h', 'split')
+    self.verify_file_open('foo.rb', 's', 'split')
+  end
+
+  defm it_can_open_in_vertical_split
+    self.verify_file_open('foo.rb', 'v', 'vsplit')
+  end
+
+  defm it_can_open_in_new_tab
+    self.verify_file_open('foo.rb', 't', 'tab')
+  end
+
+  defm it_can_read_file
+    self.verify_file_open('foo.rb', 'd', 'read')
+  end
+end

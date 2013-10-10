@@ -1,0 +1,65 @@
+class Projector
+  def initialize
+    self.is_projector = true
+  end
+
+  defm needs
+    return ['lexer', 'compiler', 'projections']
+  end
+
+  defm get_projection_templates(projection, projection_type, context)
+    templates = projection.get_projection_templates(projection_type)
+
+    " MUST duplicate else we'll end up modifying the projection model
+    templates = copy(templates)
+    if projection_type == 'alternate'
+      templates += projection.get_projection_templates('test')
+    end
+
+    compiled = []
+
+    for template in templates
+      self.append_template(compiled, template, context)
+    end
+
+    return compiled
+  end
+
+  defm get_file_template(filepath, context)
+    match = self.projections.match(filepath)
+    if match.ok
+      pattern = match.get_pattern()
+      if pattern.has_template()
+        template = pattern.get_template()
+        return self.render_template(template, context)
+      else
+        return ''
+      end
+    else
+      return ''
+    end
+
+    template = projection.get_template()
+    return self.render_template(template, context)
+  end
+
+  " helpers
+  defm render_template(template, context)
+    unless template.is_compiled()
+      template.compile(self.lexer, self.compiler)
+    end
+
+    if !template.has_error()
+      return template.render(context)
+    else
+      return template.get_error()
+    end
+  end
+
+  defm append_template(list, template, context)
+    result = self.render_template(template, context)
+    unless template.has_error()
+      add(list, result)
+    end
+  end
+end

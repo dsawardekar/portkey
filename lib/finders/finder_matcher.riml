@@ -1,0 +1,145 @@
+class FinderMatcher
+  defm shorten(results)
+    names = []
+    common_parent = self.find_common_parent(results)
+    common_ext = self.find_common_extension(results)
+    parent_len = len(common_parent)
+    ext_len = len(common_ext)
+
+    for result in results
+      result_len = len(result)
+      if ext_len != 0
+        name = strpart(result, parent_len, result_len - parent_len - ext_len - 1)
+      else
+        name = strpart(result, parent_len)
+      end
+
+      add(names, name)
+    end
+
+    return names
+  end
+
+  defm match(filename, results)
+    common_parent = self.find_common_parent(results)
+    common_ext = self.find_common_extension(results)
+    if common_ext != ''
+      common_ext = ".#{common_ext}"
+    end
+
+    for result in results
+      filename_pattern = "#{common_parent}#{filename}#{common_ext}$"
+      if result =~ filename_pattern
+        return result
+      end
+    end
+
+    return ''
+  end
+
+  " TODO: sorting is deprecated, in favor of the better matcher
+  " remove this
+  defm sort(results)
+    sort_function = new_delegate(self, 'compare_filenames')
+    sort(results, sort_function)
+  end
+
+  " helpers
+  defm compare_filenames(a, b)
+    len_a = len(a)
+    len_b = len(b)
+
+    return len_a - len_b
+  end
+
+  defm match_filename(filename, result)
+    sub_filename = self.subst_filename(filename, result)
+    return sub_filename == result
+  end
+
+  " TODO: could a regex do this better?
+  " Note: A simple suffix-ext$ regex does not work
+  defm subst_filename(filename, result)
+    parent_dir = fnamemodify(result, ':h')
+    root_name = fnamemodify(result, ':t:r')
+    ext = fnamemodify(result, ':e')
+    if parent_dir == '' || parent_dir == '.'
+      return "#{filename}.#{ext}"
+    else
+      return "#{parent_dir}/#{filename}.#{ext}"
+    end
+  end
+
+  defm find_common_parent(list)
+    n = len(list)
+    if n == 0
+      return ''
+    elseif n == 1
+      parent_dir = fnamemodify(list[0], ':h')
+      parent_dir_len = len(parent_dir)
+      if parent_dir == '' || parent_dir == '.'
+        return ''
+      elseif parent_dir[parent_dir_len - 1] != '/'
+        return parent_dir . '/'
+      else
+        return parent_dir
+      end
+    end
+
+    start = list[0]
+    prefix_len = strlen(start)
+
+    for str in list
+      i = 0
+      while i < prefix_len
+        if str[i] != start[i]
+          prefix_len = i
+          break
+        end
+        i += 1
+      end
+      if prefix_len == 0
+        break
+      end
+    end
+
+    common_parent = strpart(start, 0, prefix_len)
+    n = len(common_parent)
+
+    " ignore parent matches that aren't dirs
+    if n >= 1
+      if common_parent[n-1] == '/'
+        return common_parent
+      elseif common_parent =~ '/'
+        " strip app/controllers/co to app/controllers/
+        " so that common prefix between filenames is ignored
+        return fnamemodify(common_parent, ':h') . '/'
+      else
+        return ''
+      end
+    else
+      return ''
+    end
+  end
+
+  defm find_common_extension(results)
+    n = len(results)
+    if n > 1
+      ext = fnamemodify(results[0], ':e')
+      pattern = '\v' . ext . '$'
+      for result in results
+        unless result =~ pattern
+          return ''
+        end
+      end
+
+      return "#{ext}"
+    elseif n == 1
+      ext = fnamemodify(results[0], ':e')
+      return "#{ext}"
+    else
+      return ''
+    end
+  end
+
+end

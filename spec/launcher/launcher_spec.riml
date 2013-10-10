@@ -1,0 +1,215 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+
+class MockStrategy
+  defm get_launchable(finder_context, options)
+    return self.launchable
+  end
+end
+
+class MockContext < Context
+  defm get_root
+    return self.root
+  end
+end
+
+class LauncherSpec
+  defm before_each
+    self.container = c = new Container({})
+    c.register('buffer_opener', 'BufferOpener', true)
+    c.register('file_opener', 'FileOpener', true)
+    c.register('launcher', 'Launcher', true)
+    c.register('command_options', 'CommandOptions', true)
+    c.register('context', 'MockContext', true)
+    c.register('extensions', 'ExtensionCollection', true)
+    c.register('extractors', 'ExtractorCollection', true)
+
+  end
+
+  defm it_can_be_created
+    l = self.container.lookup('launcher')
+    expect(l.is_launcher).to_be_true()
+  end
+
+  defm it_can_lookup_launcher
+    l = self.container.lookup('launcher')
+    expect(l.lookup('launcher')).to_equal(l)
+  end
+
+  defm it_can_lookup_launchables
+    l = self.container.lookup('launcher')
+    c = l.lookup('launchables')
+    expect(l.lookup('launchables')).to_equal(c)
+  end
+
+  defm it_can_create_strategy_instance
+    c = self.container
+    c.register('MyStrategy', 'MockStrategy', true)
+
+    s = c.lookup('MyStrategy')
+    s.launchable = 'foo'
+
+    l = self.container.lookup('launcher')
+    expect(l.create_strategy('MyStrategy').launchable).to_equal('foo')
+  end
+
+  defm it_can_extract_lines_from_source
+    l = self.container.lookup('launcher')
+
+    mock = new MockExtractor()
+    extractors = self.container.lookup('extractors')
+    extractors.add_extractor(mock)
+
+    options = l.lookup('command_options')
+    options.set_args(['post', { 'match': 'Emodel', 'range': [5, 10] }])
+
+    l.extract_from_source({}, options)
+    expect(l.extractor).to_equal(mock)
+
+    expect(mock.range_start).to_equal(5)
+    expect(mock.range_end).to_equal(10)
+    expect(mock.options).to_equal(options)
+  end
+
+  defm it_can_extract_into_destination
+    l = self.container.lookup('launcher')
+
+    mock = new MockExtractor()
+    extractors = self.container.lookup('extractors')
+    extractors.add_extractor(mock)
+
+    options = l.lookup('command_options')
+    options.set_args(['post', { 'match': 'Emodel', 'range': [5, 10] }])
+
+    l.extract_from_source({}, options)
+    l.extracted_lines = ['a', 'b', 'c']
+
+    l.extract_into_destination({}, options)
+    expect(mock.lines).to_equal(['a', 'b', 'c'])
+    expect(mock.options).to_equal(options)
+  end
+
+  defm it_can_run_and_return_launchable
+    c = self.container
+    c.register('MockStrategy', 'MockStrategy', true)
+    s = c.lookup('MockStrategy')
+    s.launchable = 'comment.rb'
+
+    l = c.lookup('launcher')
+    args = ['foo', {'match': 'Emodel'}]
+    options = c.lookup('command_options')
+    options.set_args(args)
+    result = l.run(['MockStrategy'], {}, options)
+
+    expect(result.get_filepath()).to_equal('comment.rb')
+  end
+
+  defm it_can_launch_file_from_strategy
+    c = self.container
+    c.register('MockStrategy', 'MockStrategy', true)
+    s = c.lookup('MockStrategy')
+    s.launchable = 'foo.rb'
+
+    context = c.lookup('context')
+    context.root = 'spec/projects/basic/'
+
+    mock = new MockExtractor()
+    extractors = self.container.lookup('extractors')
+    extractors.add_extractor(mock)
+
+    fo = c.lookup('file_opener')
+    fo.set_exec_mode(false)
+
+    l = c.lookup('launcher')
+    args = ['foo', {'match': 'Smodel', 'range': [1, 1]}]
+    options = c.lookup('command_options')
+    options.set_args(args)
+    result = l.launch(['MockStrategy'], {}, options)
+
+    expect(fo.exec_cmd).to_match('spec/projects/basic/foo.rb$')
+
+    expect(mock.range_start).to_equal(1)
+    expect(mock.range_end).to_equal(1)
+    expect(len(mock.lines)).to_equal(1)
+  end
+
+  defm it_can_get_template_context_from_resource_options
+    c = new Container({})
+    c.register('buffers', 'BufferCollection', true)
+    c.register('contexts', 'ContextCollection', true)
+    c.register('context', 'Context', true)
+    c.register('extensions', 'ExtensionCollection', true)
+    c.register('command_options', 'CommandOptions', true)
+
+    buffer = new Buffer('spec/projects/rails/app/models/post.rb')
+    buffer.find_root()
+    root = buffer.get_abs_root()
+
+    buffers = c.lookup('buffers')
+    buffers.set_current(buffer)
+
+    contexts = c.lookup('contexts')
+    contexts.add(root)
+
+    context = contexts.get(root)
+
+    l = context.lookup('launcher')
+    opts = context.lookup('command_options')
+    opts.set_args(['author', { 'match': 'Emodel' }])
+
+    result = l.get_file_template_context('app/models/author.rb', opts)
+    expect(result.lookup('source')).to_equal('author')
+    expect(result.lookup('source_path')).to_equal('app/models/post.rb')
+  end
+
+  defm it_can_get_template_context_from_alternate_options
+    c = new Container({})
+    c.register('buffers', 'BufferCollection', true)
+    c.register('contexts', 'ContextCollection', true)
+    c.register('context', 'Context', true)
+    c.register('extensions', 'ExtensionCollection', true)
+    c.register('command_options', 'CommandOptions', true)
+
+    buffer = new Buffer('spec/projects/rails/app/models/post.rb')
+    buffer.find_root()
+    root = buffer.get_abs_root()
+
+    buffers = c.lookup('buffers')
+    buffers.set_current(buffer)
+
+    contexts = c.lookup('contexts')
+    contexts.add(root)
+
+    context = contexts.get(root)
+
+    l = context.lookup('launcher')
+    opts = context.lookup('command_options')
+    opts.set_args([{ 'match': 'A' }])
+
+    result = l.get_file_template_context('app/models/subscriber.rb', opts)
+    expect(result.lookup('source')).to_equal('subscriber')
+    expect(result.lookup('source_path')).to_equal('app/models/post.rb')
+  end
+end
+
+class MockExtractor
+  def initialize
+    self.is_extractor = true
+  end
+
+  defm match(context)
+    return true
+  end
+
+  defm change_source(range_start, range_end, options)
+    self.range_start = range_start
+    self.range_end = range_end
+    self.options = options
+  end
+
+  defm change_destination(lines, options)
+    self.lines = lines
+    self.options = options
+  end
+end

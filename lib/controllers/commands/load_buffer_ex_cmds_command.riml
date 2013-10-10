@@ -1,0 +1,25 @@
+class LoadBufferExCmdsCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'LoadBufferExCmds'
+  end
+
+  defm run(opts)
+    self.lookup('registry').register_commands()
+
+    buffer = self.get_current_buffer()
+    buffer_path = buffer.get_abs_path()
+    portkey_path = buffer.get_abs_portkey_path()
+
+    " if current file is portkey.json setup autocmds to auto refresh on write
+    if buffer_path == portkey_path
+      loader = self.lookup('autocmd_loader')
+      loader.set_group_name('portkey_refresh_group')
+      loader.cmd("BufWritePost <buffer> :PortkeyRefresh!")
+      loader.load()
+    end
+  end
+end

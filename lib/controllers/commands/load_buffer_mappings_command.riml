@@ -1,0 +1,31 @@
+class LoadBufferMappingsCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'LoadBufferMappings'
+  end
+
+  defm run(opts)
+    if has_ctrlp_plugin() && self.buffer_has_context() && exists("g:maplocalleader") && self.get_env_var('adaptive_mappings')
+      projections = self.get_current_projections()
+      mappings = projections.get_mappings()
+
+      delegate = new MapDelegate()
+      Callback = create_delegate(delegate, 'invoke')
+
+      map_loader = new MapLoader(Callback)
+      map_loader.load(mappings)
+
+      :nnoremap <LocalLeader><LocalLeader> :PortkeyMappings<CR>
+    end
+  end
+end
+
+class MapDelegate
+  defm invoke(resource_type)
+    ex_cmd = ":CtrlP#{resource_type}"
+    execute("#{ex_cmd}")
+  end
+end

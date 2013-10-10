@@ -1,0 +1,109 @@
+class Ranker
+  def initialize
+    self.rankers = new ObjectCache()
+  end
+
+  " public api
+  " type: projection, resource or file
+  " new rankers have higher priority
+  defm add_ranker(type, ranker)
+    self.rankers.insert(type, ranker)
+  end
+
+  defm rank(type, context, results)
+    rankers = self.get_rankers(type)
+    rank_items = self.to_rank_items(results)
+
+    for ranker in rankers
+      proceed = ranker.rank(context, rank_items)
+      unless proceed
+        break
+      end
+    end
+
+    self.sort(rank_items)
+
+    return self.to_results(rank_items)
+  end
+
+  defm sort(rank_items)
+    sort_function = new_delegate(self, 'compare_rank_items')
+    sort(rank_items, sort_function)
+  end
+
+  " helpers
+  defm compare_rank_items(a, b)
+    rank_a = a.get_ranking()
+    rank_b = b.get_ranking()
+
+    result = rank_b - rank_a
+    return result
+  end
+
+  defm get_rankers(type)
+    if self.rankers.has(type)
+      return self.rankers.get(type)
+    else
+      return []
+    end
+  end
+
+  defm to_rank_items(results)
+    items = []
+    for result in results
+      add(items, new RankItem(result, 0))
+    end
+
+    return items
+  end
+
+  defm to_results(rank_items)
+    results = []
+    for rank_item in rank_items
+      add(results, rank_item.get_path())
+    end
+
+    return results
+  end
+
+end
+
+class RankItem
+  def initialize(path, ranking)
+    self.path = path
+    self.ranking = ranking
+  end
+
+  defm get_path
+    return self.path
+  end
+
+  defm get_ranking
+    return self.ranking
+  end
+
+  defm set_ranking(ranking)
+    self.ranking = ranking
+  end
+
+  defm raise(*args)
+    step_size = self.get_step_size(args)
+    self.ranking += step_size
+  end
+
+  defm lower(*args)
+    step_size = self.get_step_size(args)
+    self.ranking -= step_size
+  end
+
+  defm get_step_size(args)
+    if len(args) == 1
+      step_size = args[0]
+    else
+      step_size = 1
+    end
+
+    return step_size
+  end
+
+end

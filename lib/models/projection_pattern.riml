@@ -1,0 +1,106 @@
+class ProjectionPattern
+  def initialize(original, projection)
+    self.original = original
+    self.projection = projection
+
+    if original =~ '\V**'
+      self.recursive = true
+    else
+      self.recursive = false
+    end
+  end
+
+  defm get_original
+    return self.original
+  end
+
+  defm get_projection
+    return self.projection
+  end
+
+  defm swap(filename)
+    pattern = self.get_original()
+    if pattern =~ '\V*'
+      if !self.is_recursive()
+        return substitute(pattern, '\V*', filename, '')
+      else
+        return substitute(pattern, '\V**', filename, '')
+      end
+    elseif pattern =~ '/'
+      " without start with path
+      parent_dir = fnamemodify(pattern, ':h')
+      root_name = fnamemodify(pattern, ':t:r')
+      ext = fnamemodify(pattern, ':e')
+      if ext != ''
+        ext = '.' . ext
+      end
+
+      return "#{parent_dir}/#{filename}#{ext}"
+    else
+      " without start only filename
+      root_name = fnamemodify(pattern, ':r')
+      ext = fnamemodify(pattern, ':e')
+      if ext != ''
+        ext = '.' . ext
+      end
+
+      return "#{filename}#{ext}"
+    end
+  end
+
+  defm get_regex
+    unless has_key(self, 'regex')
+      self.regex = escape_regex(self.original)
+    end
+
+    return self.regex
+  end
+
+  defm has_template
+    return has_key(self, 'template')
+  end
+
+  defm set_template(template)
+    self.template = new ProjectionTemplate(template)
+  end
+
+  defm get_template
+    return self.template
+  end
+
+  defm is_recursive
+    return self.recursive
+  end
+end
+
+def escape_regex(pattern)
+  if pattern == '*'
+    " only star
+    pattern_regex = '\v([^.]*)'
+  elseif pattern =~ '*'
+    " with star
+    pattern_regex = pattern
+    pattern_regex = substitute(pattern_regex, '\v\*+', '(.{-})', '')
+    pattern_regex = '\v' . pattern_regex
+  elseif pattern =~ '/'
+    " without star with path
+    parent_dir = fnamemodify(pattern, ':h')
+    root_name = fnamemodify(pattern, ':t:r')
+    ext = fnamemodify(pattern, ':e')
+    if ext != ''
+      ext = '.' . ext
+    end
+    pattern_regex = '\v' . "#{parent_dir}/(#{root_name})#{ext}"
+  else
+    " without star only filename
+    root_name = fnamemodify(pattern, ':r')
+    ext = fnamemodify(pattern, ':e')
+    if ext != ''
+      ext = '.' . ext
+    end
+
+    pattern_regex = '\v' . "(#{root_name})#{ext}"
+  end
+
+  return pattern_regex
+end

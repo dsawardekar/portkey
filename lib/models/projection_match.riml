@@ -1,0 +1,192 @@
+class ProjectionMatcher
+  def initialize(map)
+    self.map = map
+    self.current_order = 'asc'
+  end
+
+  defm match(path, order)
+    for pattern in self.get_patterns(order)
+      result = matchlist(path, pattern.get_regex())
+
+      if len(result) > 0
+        match = new ProjectionMatch(true)
+        match.set_input(path)
+        match.set_source(result[1])
+        match.set_pattern(pattern)
+
+        return match
+      end
+    end
+
+    match = new ProjectionMatch(false)
+    match.set_input(path)
+
+    return match
+  end
+
+  defm get_pattern_store(order)
+    return "#{order}_patterns"
+  end
+
+  defm set_updated(order)
+    key = "#{order}_updated"
+    self[key] = true
+  end
+
+  defm get_updated(order)
+    key = "#{order}_updated"
+    return has_key(self, key) && self[key]
+  end
+
+  defm get_patterns(order)
+    pattern_store = self.get_pattern_store(order)
+    unless self.get_updated(order)
+      projections = self.map.get_projections()
+      self[pattern_store] = self.sort_projections(projections, order)
+      self.set_updated(order)
+    end
+
+    return self[pattern_store]
+  end
+
+  defm sort_projections(projections, order)
+    ordered_patterns = []
+
+    for projection in projections
+      for pattern in projection.get_patterns()
+        add(ordered_patterns, pattern)
+      end
+    end
+
+    self.current_order = order
+    sort(ordered_patterns, self.get_callback())
+
+    return ordered_patterns
+  end
+
+  defm update()
+    self.asc_updated = false
+    self.desc_updated = false
+  end
+
+  defm get_callback()
+    unless has_key(self, 'CompareFunc')
+      self.CompareFunc = create_delegate(self, 'compare_patterns')
+    end
+
+    return self.CompareFunc
+  end
+
+  defm compare_patterns(a, b)
+    pattern_a = a.get_original()
+    pattern_b = b.get_original()
+
+    parent_dir_a = fnamemodify(pattern_a, ':h')
+    parent_dir_b = fnamemodify(pattern_b, ':h')
+
+    parent_dir_la = len(parent_dir_a)
+    parent_dir_lb = len(parent_dir_b)
+
+    if parent_dir_a == parent_dir_b
+      " app/models/*.rb vs app/models/*_foo.rb
+      " *.rb
+      " *_foo.rb
+      tail_a = fnamemodify(pattern_a, ':t')
+      tail_b = fnamemodify(pattern_b, ':t')
+      len_a = len(tail_a)
+      len_b = len(tail_b)
+
+      result = len_a - len_b
+    elseif parent_dir_la >= parent_dir_lb
+      if match(parent_dir_a, parent_dir_b) == 0
+        " app/models/foo/*.rb vs app/models/*.rb
+        " *.rb
+        " foo/*.rb
+        result = 1
+      else
+        " app/controllers/*.rb vs app/models/*.rb
+        " controllers/*.rb
+        " models/*.rb
+        " alphabetical comparison
+        result = self.compare_alphabetical(parent_dir_a, parent_dir_b)
+      end
+    elseif parent_dir_la < parent_dir_lb
+      if match(parent_dir_b, parent_dir_a) == 0
+        " app/models/*.rb " vs app/models/foo/*.rb
+        " *.rb
+        " foo/*.rb
+        result = -1
+      else
+        " app/models/*.rb " vs app/models/foo/*.rb
+        " *.rb
+        " foo/*.rb
+        result = 1
+      end
+    else
+      " else sort alphabetically
+      " app/controllers/*.rb vs app/models/*.rb
+      " controllers/*.rb
+      " models/*.rb
+      result = self.compare_alphabetical(parent_dir_a, parent_dir_b)
+    end
+
+    " makes the test checks more intuitive
+    if result >= 1
+      result = 1
+    elseif result <= -1
+      result = -1
+    else
+      result = 0
+    end
+
+    if self.current_order == 'asc'
+      return result
+    else
+      return result * -1
+    end
+  end
+
+  defm compare_alphabetical(a, b)
+    if a < b
+      result = -1
+    elseif a > b
+      result = 1
+    else
+      result = 0
+    end
+
+    return result
+  end
+end
+
+class ProjectionMatch
+  def initialize(ok)
+    self.ok = ok
+    self.is_match = true
+  end
+
+  defm set_input(input)
+    self.input = input
+  end
+
+  defm get_input
+    return self.input
+  end
+
+  defm set_source(source)
+    self.source = source
+  end
+
+  defm get_source
+    return self.source
+  end
+
+  defm set_pattern(pattern)
+    self.pattern = pattern
+  end
+
+  defm get_pattern
+    return self.pattern
+  end
+end
+

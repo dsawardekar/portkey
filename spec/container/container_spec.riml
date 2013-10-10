@@ -1,0 +1,319 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'container.riml'
+
+class MockObject
+  def initialize
+    self.is_mock_object = true
+  end
+end
+
+class MockWithNeeds
+  def initialize
+    self.is_mock_with_needs = true
+  end
+
+  defm needs
+    return ['a', 'b', 'c']
+  end
+end
+
+class MockWithParentNeeds
+  def initialize
+    self.is_mock_with_parent_needs = true
+  end
+
+  defm needs
+    return ['pa', 'pb', 'a', 'b']
+  end
+end
+
+class ContainerObjectSpec
+  defm describe
+    return 'ContainerObjectSpec'
+  end
+
+  defm it_can_be_created
+    o = new ContainerObject('Foo', false)
+  end
+
+  defm it_is_not_instantiated_initially
+    o = new ContainerObject('Foo', false)
+    expect(o.instantiated()).to_be_false()
+  end
+
+  defm it_needs_new_instance_initially
+    o = new ContainerObject('MockObject', false)
+    expect(o.needs_new_instance()).to_be_true()
+  end
+
+  defm it_does_not_need_instance_if_present
+    o = new ContainerObject('MockObject', true)
+    o.instance_object = 'foo'
+    expect(o.needs_new_instance()).to_be_false()
+  end
+
+  defm it_needs_new_instance_even_if_present_for_non_singletons
+    o = new ContainerObject('MockObject', false)
+    o.instance_object = 'foo'
+    expect(o.needs_new_instance()).to_be_true()
+  end
+
+  defm it_can_create_singleton_instance
+    o = new ContainerObject('MockObject', true)
+    inst = o.get_instance()
+    inst.foo = 'bar'
+    inst2 = o.get_instance()
+
+    expect(inst.is_mock_object).to_be_true()
+    expect(inst).to_equal(inst2)
+    expect(inst2.foo).to_equal('bar')
+  end
+
+  defm it_can_create_on_demand_instances
+    o = new ContainerObject('MockObject', false)
+    inst = o.get_instance()
+    inst.foo = 'bar'
+
+    inst2 = o.get_instance()
+
+    expect(inst.is_mock_object).to_be_true()
+    expect(inst).to_not_equal(inst2)
+    expect(inst2).to_not_have_key('foo')
+  end
+
+end
+
+class ContainerSpec
+  defm describe
+    return 'ContainerSpec'
+  end
+
+  defm it_can_be_created
+    o = new Container({})
+  end
+
+  defm it_can_create_child_container
+    p = new Container({})
+    c = p.child()
+    expect(c.get_parent()).to_equal(p)
+  end
+
+  defm it_can_register_container_objects
+    o = new Container({})
+
+    expect(o.has('foo')).to_be_false()
+    o.register('foo', 'MockObject', true)
+    expect(o.has('foo')).to_be_true()
+  end
+
+  defm it_can_unregister_container_objects
+    o = new Container({})
+    o.register('foo', 'MockObject', true)
+    o.unregister('foo', false)
+
+    expect(o.has('foo')).to_be_false()
+  end
+
+  defm it_can_unregister_parent_container_objects
+    p = new Container({})
+    p.register('foo', 'MockObject', true)
+    o = new Container(p)
+
+    expect(o.has('foo')).to_be_true()
+    o.unregister('foo', true)
+    expect(o.has('foo')).to_be_false()
+  end
+
+  defm it_can_inject_container_on_instances
+    p = new Container({})
+    mock = new MockObject()
+    p.inject(mock)
+
+    expect(mock.container).to_equal(p)
+  end
+
+  defm it_can_lookup_object_without_needs
+    c = new Container({})
+    c.register('foo', 'MockObject')
+
+    inst = c.lookup('foo')
+    expect(inst.is_mock_object).to_be_true()
+    expect(inst.container).to_equal(c)
+  end
+
+  defm it_can_lookup_object_with_needs
+    c = new Container({})
+    c.register('a', 'MockObject')
+    c.register('b', 'MockObject')
+    c.register('c', 'MockObject')
+
+    c.register('foo', 'MockWithNeeds')
+    inst = c.lookup('foo')
+
+    expect(inst.is_mock_with_needs).to_be_true()
+    expect(inst.a.is_mock_object).to_be_true()
+    expect(inst.b.is_mock_object).to_be_true()
+    expect(inst.c.is_mock_object).to_be_true()
+  end
+
+  defm it_can_lookup_objects_with_needs_from_parent
+    p = new Container({})
+    p.register('pa', 'MockObject')
+    p.register('pb', 'MockObject')
+
+    c = new Container(p)
+    c.register('a', 'MockObject')
+    c.register('b', 'MockObject')
+    c.register('foo', 'MockWithParentNeeds')
+
+    inst = c.lookup('foo')
+    expect(inst.is_mock_with_parent_needs).to_be_true()
+    expect(inst.pa.is_mock_object).to_be_true()
+    expect(inst.pb.is_mock_object).to_be_true()
+    expect(inst.a.is_mock_object).to_be_true()
+    expect(inst.b.is_mock_object).to_be_true()
+  end
+
+  defm it_throws_an_error_if_object_is_not_found
+    p = new Container({})
+    c = new Container(p)
+    try
+      inst = c.lookup('foo')
+      caught_error = false
+    catch /.*/
+      caught_error = true
+    end
+
+    expect(caught_error).to_be_true()
+  end
+
+  defm it_always_injects_a_container
+    c = new Container({})
+    c.register('mock', 'MockObject')
+
+    inst = c.lookup('mock')
+    expect(inst.is_mock_object).to_be_true()
+    expect(inst).to_have_key('container')
+
+    inst = c.lookup('mock')
+    expect(inst).to_have_key('container')
+  end
+
+  defm it_can_store_arrays
+    c = new Container({})
+    c.register('a', [1, 2, 3])
+
+    expect(c.lookup('a')).to_equal([1, 2, 3])
+  end
+
+  defm it_can_store_objects
+    c = new Container({})
+    mock = new MockObject()
+    c.register('mock', mock)
+
+    expect(c.lookup('mock')).to_equal(mock)
+  end
+end
+
+mock_id_counter = 0
+
+def next_mock_id
+  s:mock_id_counter += 1
+  return s:mock_id_counter
+end
+
+class MockA
+  def initialize
+    self.is_mock_a = true
+    self.id = next_mock_id()
+  end
+end
+
+class MockB
+  def initialize
+    self.is_mock_b = true
+    self.id = next_mock_id()
+  end
+end
+
+class MockC
+  def initialize
+    self.is_mock_c = true
+    self.id = next_mock_id()
+  end
+end
+
+class SingletonA
+  def initialize
+    self.is_singleton_a = true
+    self.id = next_mock_id()
+  end
+end
+
+class SingletonB
+  def initialize
+    self.is_singleton_b = true
+    self.id = next_mock_id()
+  end
+end
+
+class NeederA
+  def initialize
+    self.is_needer_a = true
+    self.id = next_mock_id()
+  end
+
+  defm needs
+    return ['a', 'b', 'c', 'sa', 'sb']
+  end
+end
+
+class NeederB
+  def initialize
+    self.is_needer_b = true
+    self.id = next_mock_id()
+  end
+
+  defm needs
+    return ['a', 'b', 'sa']
+  end
+end
+
+class ContainerE2ESpec
+  defm describe
+    return 'ContainerE2ESpec'
+  end
+
+  defm it_can_create_objects_with_dependencies
+    p = new Container({})
+    p.register('a', 'MockA')
+    p.register('b', 'MockB')
+    p.register('sa', 'SingletonA', true)
+
+    c = new Container(p)
+    c.register('c', 'MockC')
+    c.register('sb', 'SingletonB', true)
+
+    c.register('needer_a', 'NeederA')
+    c.register('needer_b', 'NeederB')
+
+    needer_a = c.lookup('needer_a')
+    needer_b = c.lookup('needer_b')
+
+    expect(needer_a.is_needer_a).to_be_true()
+    expect(needer_a.a.is_mock_a).to_be_true()
+    expect(needer_a.b.is_mock_b).to_be_true()
+    expect(needer_a.c.is_mock_c).to_be_true()
+    expect(needer_a.sa.is_singleton_a).to_be_true()
+    expect(needer_a.sb.is_singleton_b).to_be_true()
+
+    expect(needer_b.is_needer_b).to_be_true()
+    expect(needer_b.a.is_mock_a).to_be_true()
+    expect(needer_b.b.is_mock_b).to_be_true()
+    expect(needer_b.sa.is_singleton_a).to_be_true()
+
+    expect(needer_a.sa).to_equal(needer_b.sa)
+  end
+end

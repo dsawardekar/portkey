@@ -1,0 +1,91 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'msg.riml'
+riml_include 'delegate.riml'
+riml_include 'projection_inc.riml'
+riml_include 'map_builder.riml'
+riml_include 'map_loader.riml'
+
+class MapLoaderSpec
+  defm describe
+    return 'MapLoaderSpec'
+  end
+
+  defm before_each
+    self.run_result = ''
+    :mapclear <buffer>
+  end
+
+  defm it_can_load_mappings
+    unless exists('g:maplocalleader')
+      return
+    end
+
+    prefixes = []
+
+    p = new Projection('view')
+    add(prefixes, {'value': 'v', 'source': p})
+
+    p = new Projection('controller')
+    add(prefixes, {'value': 'c', 'source': p})
+
+    Callback = create_delegate(self, 'run_mapping')
+    loader = new MapLoader(Callback)
+    loader.load(prefixes)
+
+    execute(":silent normal #{g:maplocalleader}v")
+
+    expect(self.run_result).to_equal('view')
+  end
+
+  defm it_can_print_mappings_log
+    unless exists('g:speckle_tag') && g:speckle_tag == 'log'
+      return
+    end
+
+    prefixes = []
+
+    p = new Projection('view')
+    add(prefixes, {'value': 'v', 'source': p})
+
+    p = new Projection('controller')
+    add(prefixes, {'value': 'c', 'source': p})
+
+    Callback = create_delegate(self, 'run_mapping')
+    loader = new MapLoader(Callback)
+    loader.print(prefixes)
+  end
+
+  defm it_can_print_empty_mappings_msg_log
+    unless exists('g:speckle_tag') && g:speckle_tag == 'log'
+      return
+    end
+
+    prefixes = []
+
+    Callback = create_delegate(self, 'run_mapping')
+    loader = new MapLoader(Callback)
+    loader.print(prefixes)
+  end
+
+  defm it_can_unload_mappings
+    prefixes = []
+    p = new Projection('view')
+    add(prefixes, {'value': 'v', 'source': p})
+
+    p = new Projection('controller')
+    add(prefixes, {'value': 'c', 'source': p})
+
+    Callback = create_delegate(self, 'run_mapping')
+    loader = new MapLoader(Callback)
+    loader.load(prefixes)
+    loader.unload(prefixes)
+
+    expect(hasmapto('<LocalLeader>v')).to_be_false()
+    expect(hasmapto('<LocalLeader>v')).to_be_false()
+  end
+
+  defm run_mapping(arg)
+    self.run_result = arg
+  end
+end

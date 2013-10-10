@@ -1,0 +1,31 @@
+class FileWriter
+  def initialize()
+    self.lines = []
+    self.current_line = ''
+  end
+
+  defm set_output_file(output_file)
+    self.output_file = output_file
+  end
+
+  defm write(line)
+    self.current_line = "#{self.current_line}#{line}"
+  end
+
+  defm writeln(line)
+    add(self.lines, "#{self.current_line}#{line}")
+    self.current_line = ''
+  end
+
+  defm flush_line()
+    unless self.current_line == ''
+      add(self.lines, self.current_line)
+      self.current_line = ''
+    end
+  end
+
+  defm flush()
+    self.flush_line()
+    writefile(self.lines, self.output_file)
+  end
+end

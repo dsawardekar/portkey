@@ -1,0 +1,28 @@
+class LaunchableCollection
+  def initialize
+    self.launchables = []
+    self.is_launchable_collection = true
+  end
+
+  defm add(launchable)
+    add(self.launchables, launchable)
+  end
+
+  defm get_all
+    return self.launchables
+  end
+
+  defm find(strategy)
+    for launchable in self.launchables
+      if launchable.get_strategy() == strategy
+        return launchable
+      end
+    end
+
+    return { 'is_launchable': false }
+  end
+
+  defm size
+    return len(self.launchables)
+  end
+end

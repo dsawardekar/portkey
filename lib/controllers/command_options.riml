@@ -1,0 +1,178 @@
+class CommandOptions
+
+  defm set_args(args)
+    self.args = args
+    self.nargs = len(args)
+
+    if self.nargs == 2
+      " :Foo filename + opts
+      self.set_filename(self.args[0])
+      self.opts = self.args[1]
+    elseif self.nargs == 1
+      " :Foo + opts
+      self.set_filename('')
+      self.opts = self.args[0]
+    else
+      " :Foo
+      self.set_filename('')
+      self.opts = {}
+    end
+  end
+
+  defm get_args
+    return self.args
+  end
+
+  defm get_nargs
+    return self.nargs
+  end
+
+  defm get_opts
+    return self.opts
+  end
+
+  defm set_filename(filename)
+    self.filename = filename
+  end
+
+  defm get_filename
+    return self.filename
+  end
+
+  defm set_launchables(launchables)
+    self.launchables = launchables
+  end
+
+  defm get_launchables
+    return self.launchables
+  end
+
+  defm set_append_mode(append_mode)
+    self.append_mode = append_mode
+  end
+
+  defm get_append_mode
+    return self.append_mode
+  end
+
+  " from opts
+  defm get_option(name, default)
+    if has_key(self.opts, name)
+      return self.opts[name]
+    else
+      return default
+    end
+  end
+
+  defm get_word
+    return self.get_option('word', '')
+  end
+
+  defm get_bang
+    return self.get_option('bang', false)
+  end
+
+  defm has_range
+    return has_key(self.opts, 'range')
+  end
+
+  defm get_range
+    return self.get_option('range', [1, 1])
+  end
+
+  defm has_count
+    return has_key(self.opts, 'count') && self.opts.count > 0
+  end
+
+  defm get_count
+    if has_key(self.opts, 'count') && self.opts.count > 0
+      return self.opts.count
+    else
+      return 1
+    end
+  end
+
+  defm set_window_mode(window_mode)
+    self.window_mode = window_mode
+  end
+
+  defm get_window_mode
+    unless has_key(self, 'window_mode')
+      self.window_mode = self.calc_window_mode()
+    end
+
+    return self.window_mode
+  end
+
+  defm calc_window_mode
+    unless has_key(self.opts, 'match')
+      return 'e'
+    end
+
+    opts = self.opts
+    match = opts.match
+    match_len = strlen(match)
+
+    if match =~ '^CtrlP'
+      if has_key(opts, 'mode')
+      " from ctrlp use it's mode
+        mode = opts.mode
+      else
+        mode = 'e'
+      end
+    elseif match_len == 2
+      " AV, AE, etc, use last char
+      mode = match[1]
+    elseif match_len > 2
+      " Efoo, Sfoo, etc
+      mode = tolower(match[0])
+      if self.has_range() && mode == 'd'
+        " do not read and extract at the same time!!!
+        mode = 'e'
+      end
+    elseif match_len == 1
+      " A, R, etc without mode
+      mode = 'e'
+    else
+      " full name Alternate, Related, etc
+      mode = 'e'
+    end
+
+    return tolower(mode)
+  end
+
+  defm has_resource_type
+    return has_key(self, 'resource_type')
+  end
+
+  defm get_resource_type
+    unless has_key(self, 'resource_type')
+      self.resource_type = self.build_resource_type()
+    end
+
+    return self.resource_type
+  end
+
+  defm set_resource_type(resource_type)
+    self.resource_type = resource_type
+  end
+
+  defm build_resource_type()
+    if has_key(self.opts, 'cmd_line')
+      cmd_line = self.opts.cmd_line
+    elseif has_key(self.opts, 'match')
+      cmd_line = self.opts.match
+    else
+      cmd_line = ''
+    end
+
+    pattern = '\v^([^\w]*)(CtrlP|\u)(\w+)\s*'
+    matches = matchlist(cmd_line, pattern)
+    if len(matches) > 0
+      resource_type = matches[3]
+      return resource_type
+    else
+      return 'unknown'
+    end
+  end
+end

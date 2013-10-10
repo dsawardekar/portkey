@@ -1,0 +1,28 @@
+class MockCtrlPAgent
+
+  defm init(*args)
+    self.init_args = args
+    if has_key(self, 'init_result')
+      return self.init_result
+    else
+      return []
+    end
+  end
+
+  defm accept(mode, str)
+    self.accept_args = [mode, str]
+  end
+
+  defm enter(*args)
+    self.enter_args = args
+  end
+
+  defm exit(*args)
+    self.exit_args = args
+  end
+
+  defm opts(*args)
+    self.opts_args = args
+  end
+
+end

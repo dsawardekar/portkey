@@ -1,0 +1,35 @@
+class ExtensionCollection
+  def initialize
+    self.extensions = {}
+  end
+
+  defm add_extension(extension)
+    self.extensions[extension.get_name()] = extension
+  end
+
+  defm remove_extension(name)
+    if self.has_extension(name)
+      :unlet self.extensions[a:name]
+    end
+  end
+
+  defm has_extension(name)
+    return has_key(self.extensions, name)
+  end
+
+  defm get_extension(name)
+    return self.extensions[name]
+  end
+
+  defm get_all_extensions
+    return values(self.extensions)
+  end
+
+  defm find_extension_portkey(name)
+    if self.has_extension(name)
+      return self.get_extension(name).get_portkey_path()
+    else
+      return ''
+    end
+  end
+end

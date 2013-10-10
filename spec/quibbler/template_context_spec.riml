@@ -1,0 +1,39 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'delegate.riml'
+riml_include 'template_context.riml'
+
+class TemplateContextSpec
+  defm describe
+    return 'TemplateContextSpec'
+  end
+
+  defm it_can_store_data
+    context = new TemplateContext({'foo': 10})
+    expect(context.data.foo).to_equal(10)
+  end
+
+  defm it_can_lookup_key_from_data
+    data = { 'foo': 10 }
+    context = new TemplateContext(data)
+
+    expect(context.lookup('foo')).to_equal(10)
+  end
+
+  defm it_can_lookup_key_from_parent_context
+    parent_context = new TemplateContext({'foo': 10})
+    context = new TemplateContext(parent_context)
+    expect(context.lookup('foo')).to_equal(10)
+  end
+
+  defm it_can_lookup_key_named_context
+    data = {'foo': 10}
+    context = new TemplateContext(data)
+    expect(context.lookup('context')).to_equal(data)
+  end
+
+  defm it_can_ignore_missing_key_lookups
+    context = new TemplateContext({})
+    expect(context.lookup('lorem')).to_equal('')
+  end
+end

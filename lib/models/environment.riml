@@ -1,0 +1,39 @@
+class Environment
+  def initialize()
+    opts = {}
+    opts.autostart = true
+    opts.adaptive_mappings = true
+
+    self.options = opts
+  end
+
+  defm on_inject
+    self.load_options()
+  end
+
+  defm load_defaults(opts)
+    self.options = opts
+  end
+
+  defm set_option(name, value)
+    self.options[name] = value
+  end
+
+  defm get_option(name)
+    return self.options[name]
+  end
+
+  defm load_option(name)
+    key = "portkey_#{name}"
+    if exists("g:#{key}")
+      execute("let value = g:#{key}")
+      self.set_option(name, value)
+    end
+  end
+
+  defm load_options()
+    for option in keys(self.options)
+      self.load_option(option)
+    end
+  end
+end

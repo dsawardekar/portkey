@@ -1,0 +1,102 @@
+class DataFrame
+  def initialize(buffer)
+    self.buffer = buffer
+    self.is_data_frame = true
+
+    " default line is the current line in current buffer
+    self.line = getline('.')
+
+    " default tags via Tagbar
+    " TODO: do we need the variants?
+    if exists(':TagbarCurrentTag')
+      self.tag = tagbar#currenttag('%s', '', 's')
+      self.tag_full = tagbar#currenttag('%s', '', 'f')
+      self.tag_proto = tagbar#currenttag('%s', '', 'p')
+    end
+  end
+
+  defm set_line(line)
+    self.line = line
+  end
+
+  defm set_tags(tag, tag_full, tag_proto)
+    self.tag = tag
+    self.tag_full = tag_full
+    self.tag_proto = tag_proto
+  end
+
+  defm set_source(source_name)
+    self.source = source_name
+  end
+
+  defm set_source_path(source_path)
+    self.source_path = source_path
+  end
+
+  defm print()
+    info('buffer', self.buffer.get_rel_path())
+    info('tag', self.tag)
+    info('tag_full', self.tag_full)
+    info('tag_proto', self.tag_proto)
+  end
+end
+
+class ProjectionDataFrame < DataFrame
+  def initialize(buffer)
+    super(buffer)
+    self.is_switch_data_frame = true
+  end
+
+  defm set_projection(projection, projection_type)
+    self.projection = projection
+    self.projection_type = projection_type
+  end
+
+  defm set_pattern(pattern)
+    self.pattern = pattern
+  end
+
+  defm print
+    super()
+    info('projection', self.projection.get_resource_type())
+    info('projection_type', self.projection_type)
+    info('pattern', self.pattern.get_original())
+  end
+end
+
+class ResourceDataFrame < DataFrame
+  def initialize(buffer)
+    super(buffer)
+    self.is_resource_file_data_frame = true
+  end
+
+  defm set_pattern_list(pattern_list)
+    self.pattern_list = pattern_list
+  end
+end
+
+class GetFileDataFrame < DataFrame
+  def initialize(buffer)
+    super(buffer)
+    self.is_get_file_data_frame = true
+  end
+
+  defm set_pattern_list(pattern_list)
+    self.pattern_list = pattern_list
+  end
+
+  defm set_inflector(inflector)
+    self.inflector = inflector
+  end
+
+  defm set_projection(projection)
+    self.projection = projection
+  end
+end
+
+class FileTemplateDataFrame < DataFrame
+  def initialize(buffer)
+    super(buffer)
+    self.is_file_template_data_frame = true
+  end
+end

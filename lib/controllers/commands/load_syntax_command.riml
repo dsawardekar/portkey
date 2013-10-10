@@ -1,0 +1,19 @@
+class LoadSyntaxCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'LoadSyntax'
+  end
+
+  defm run(opts)
+    if self.buffer_has_projection()
+      resource_type = self.get_current_resource_type()
+      syntax_loader = self.lookup('syntax_loader')
+
+      syntax_loader.load(resource_type)
+      syntax_loader.load_by_pattern(self.get_current_buffer_path())
+    end
+  end
+end

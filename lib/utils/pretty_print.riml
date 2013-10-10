@@ -1,0 +1,12 @@
+" use with caution
+" circular references give a 'too much nesting error'
+def pretty_print(object)
+  g:prettyprint_width = 30
+  :redir => res
+  silent execute(":PP a:object")
+  :redir END
+  lines =split(res, '\n')
+  for line in lines
+    info(line)
+  end
+end

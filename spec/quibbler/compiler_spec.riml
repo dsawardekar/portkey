@@ -1,0 +1,272 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+
+class MockTemplateContext
+  defm lookup(key)
+    return self[key]
+  end
+end
+
+class QuibblerCompilerSpec
+  defm describe
+    return 'QuibblerCompilerSpec'
+  end
+
+  defm it_can_store_filter_factory
+    factory = new FilterFactory()
+    compiler = new Compiler()
+    compiler.filter_factory = (factory)
+  end
+
+  defm get_object(type, value)
+    token = new Token(type, value)
+    compiler = new Compiler()
+    compiler.filter_factory = ({})
+
+    return compiler.get_object(token)
+  end
+
+  defm it_can_get_text_objects_from_token
+    object = self.get_object(s:itemText, 'foo')
+    expect(object.is_text).to_be_true()
+    expect(object.text).to_equal('foo')
+  end
+
+  defm it_can_get_newline_object_from_token
+    object = self.get_object(s:itemNewline, '')
+    expect(object.is_newline).to_be_true()
+  end
+
+  defm it_can_get_tab_object_from_token
+    object = self.get_object(s:itemTab, '')
+    expect(object.is_tab).to_be_true()
+  end
+
+  defm it_can_get_dummy_filter_from_itemFilter_token
+    object = self.get_object(s:itemFilter, 'upper')
+    expect(object.is_filter).to_be_true()
+  end
+
+  defm it_throws_an_error_for_unknown_tokens
+    try
+      object = self.get_object(1000, 'foo')
+      caught_exception = false
+    catch /CompilerError/
+      caught_exception = true
+    end
+
+    expect(caught_exception).to_be_true()
+  end
+
+  defm it_can_get_placeholder_object_from_token
+    object = self.get_object(s:itemPlaceholder, 'source')
+    expect(object.is_placeholder).to_be_true()
+    expect(object.name).to_equal('source')
+  end
+
+  defm it_can_get_placeholder_object_from_itemModifier_token
+    object = self.get_object(s:itemModifier, 's')
+    expect(object.is_placeholder).to_be_true()
+    expect(object.name).to_equal('source')
+    expect(object.filters).to_have_length(0)
+  end
+
+  defm it_can_get_placeholder_object_from_as_is_itemModifier_token
+    object = self.get_object(s:itemModifier, '%')
+    expect(object.is_placeholder).to_be_true()
+    expect(object.name).to_equal('source_path')
+    expect(object.filters).to_have_length(0)
+  end
+
+  defm it_adds_filter_to_placeholder_from_itemModifier_token
+    object = self.get_object(s:itemModifier, 'i')
+    expect(object.is_placeholder).to_be_true()
+    expect(object.name).to_equal('source')
+    expect(object.filters).to_equal(['singular'])
+  end
+
+  defm it_returns_correct_lookup_key_for_modifier_token_value
+    c = new Compiler()
+
+    expect(c.get_key_name_for_modifier('s')).to_equal('source')
+    expect(c.get_key_name_for_modifier('%')).to_equal('source_path')
+    expect(c.get_key_name_for_modifier('d')).to_equal('tag')
+    expect(c.get_key_name_for_modifier('l')).to_equal('line')
+    expect(c.get_key_name_for_modifier('')).to_equal('source')
+  end
+
+  defm it_can_detect_if_object_is_placeholder
+    compiler = new Compiler()
+    compiler.filter_factory = ({})
+    object = self.get_object(s:itemText, 'foo')
+    expect(compiler.is_placeholder(object)).to_be_false()
+
+    object = self.get_object(s:itemPlaceholder, 'source')
+    expect(compiler.is_placeholder(object)).to_be_true()
+  end
+
+  defm it_can_detect_if_object_is_filter
+    compiler = new Compiler()
+    compiler.filter_factory = ({})
+    object = self.get_object(s:itemText, 'foo')
+    expect(compiler.is_filter(object)).to_be_false()
+
+    object = self.get_object(s:itemFilter, 'upper')
+    expect(compiler.is_filter(object)).to_be_true()
+  end
+
+end
+
+class MockFilter
+  defm filter(str)
+    return self.filtered
+  end
+end
+
+class CompilerE2ESpec
+  defm describe
+    return 'Compiler End-to-End'
+  end
+
+  defm it_can_render_plain_string
+    lexer = new Lexer()
+    compiler = new Compiler()
+    compiler.filter_factory = ({})
+    template = compiler.compile(lexer.scan('hello'))
+
+    expect(template.render({})).to_equal('hello')
+  end
+
+  defm it_can_render_path1
+    lexer = new Lexer()
+    compiler = new Compiler()
+    compiler.filter_factory = ({})
+    context = new MockTemplateContext()
+    context.source = 'foo'
+    template = compiler.compile(lexer.scan('app/views/%s.html.erb'))
+
+    expect(template.render(context)).to_equal('app/views/foo.html.erb')
+  end
+
+  defm it_can_render_path2
+    lexer = new Lexer()
+    compiler = new Compiler()
+    compiler.filter_factory = ({})
+    context = new MockTemplateContext()
+    context.source_path = 'a/b/c/d.rb'
+    template = compiler.compile(lexer.scan('prefix/%'))
+
+    expect(template.render(context)).to_equal('prefix/a/b/c/d.rb')
+  end
+
+  defm get_filter_factory()
+    factory = new FilterFactory()
+    filter = new MockFilter()
+    filter.filtered = 'lorem_ipsum'
+    factory.add_filter('camel', filter)
+
+    filter = new MockFilter()
+    filter.filtered = 'lipsum'
+    factory.add_filter('human', filter)
+
+    return factory
+  end
+
+  defm it_can_render_template1
+    lexer = new Lexer()
+    compiler = new Compiler()
+    context = new MockTemplateContext()
+    factory = self.get_filter_factory()
+    compiler.filter_factory = (factory)
+    context.source = 'LoremIpsum'
+    template = compiler.compile(lexer.scan('class %S < %h\n\tputs "hello from %{source}"\nend'))
+
+    if &expandtab
+      tabs = self.tabs_to_spaces()
+      expected = "class lorem_ipsum < lipsum\n" . tabs . "puts \"hello from LoremIpsum\"\nend"
+    else
+      expected = "class lorem_ipsum < lipsum\n\tputs \"hello from LoremIpsum\"\nend"
+    end
+
+    result = template.render(context)
+    expect(template.render(context)).to_equal(expected)
+  end
+
+  defm tabs_to_spaces
+    return repeat(' ', &tabstop)
+  end
+
+end
+
+class CompilerPerformanceSpec
+  defm describe
+    return 'CompilerPerformanceSpec'
+  end
+
+  defm get_filter_factory()
+    factory = new FilterFactory()
+    filter = new MockFilter()
+    filter.filtered = 'lorem_ipsum'
+    factory.add_filter('camel', filter)
+
+    filter = new MockFilter()
+    filter.filtered = 'lipsum'
+    factory.add_filter('human', filter)
+
+    return factory
+  end
+
+  defm is_perf
+    return exists('g:speckle_tag') && g:speckle_tag == 'perf'
+  end
+
+  defm before_each
+    unless self.is_perf()
+      return
+    end
+
+    self.lexer = new Lexer()
+    self.compiler = new Compiler()
+    self.context = new MockTemplateContext()
+    factory = self.get_filter_factory()
+    self.compiler.filter_factory = factory
+    self.context.source = 'LoremIpsum'
+    self.template_str = 'class %S < %h\n\tputs "hello from %{source}"\nend'
+
+    self.tokens = []
+    i = 0
+
+    while i < 100
+      add(self.tokens, self.lexer.scan(self.template_str))
+      i += 1
+    end
+  end
+
+  defm after_each
+    unless self.is_perf()
+      return
+    end
+
+    :unlet self.compiler
+    :unlet self.lexer
+    :unlet self.context
+  end
+
+  defm it_compiles_fast_enough_perf
+    unless self.is_perf()
+      return
+    end
+
+    " current < 100ms, compiling 100 set of scanned tokens
+    for token in self.tokens
+      template = self.compiler.compile(token)
+    end
+  end
+end

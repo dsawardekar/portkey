@@ -1,0 +1,62 @@
+class Controller
+  defm process(*args)
+    registry = self.container.lookup('registry')
+    return call(registry['run_action'], args, registry)
+  end
+
+  defm load()
+    self.configure_container()
+
+    " commands
+    self.load_commands()
+
+    " we'll load core without waiting for any autocmds
+    self.load_core_extension()
+  end
+
+  defm configure_container
+    self.container = c = new Container({})
+
+    " singletons
+    c.register('extensions', 'ExtensionCollection', true)
+    c.register('contexts', 'ContextCollection', true)
+    c.register('buffers', 'BufferCollection', true)
+    c.register('file_opener', 'FileOpener', true)
+    c.register('env', 'Environment', true)
+    c.register('registry', 'CommandRegistry', true)
+    c.register('matcher', 'FinderMatcher', true)
+
+    " non singletons
+    c.register('context', 'Context')
+    c.register('command_options', 'CommandOptions')
+  end
+
+  " initialization helpers
+  defm load_commands()
+    c = self.container
+    r = c.lookup('registry')
+
+    r.add(new ConfigureBufferCommand(c))
+    r.add(new ChangeCurrentBufferCommand(c))
+    r.add(new LoadBufferExCmdsCommand(c))
+    r.add(new LoadBufferMappingsCommand(c))
+    r.add(new LoadGetFileCommand(c))
+    r.add(new LoadSyntaxCommand(c))
+    r.add(new ShowVersionCommand(c))
+    r.add(new RefreshCommand(c))
+    r.add(new PortkeyRunnerCommand(c))
+    r.add(new LoadExtensionCommand(c))
+    r.add(new PortkeyMappingsCommand(c))
+    r.add(new OpenPortkeyCommand(c))
+
+    r.add(new AlternateFileCommand(c))
+    r.add(new RelatedFileCommand(c))
+    r.add(new ResourceFileCommand(c))
+    r.add(new GetFileCommand(c))
+  end
+
+  defm load_core_extension
+    self.process('LoadExtension', new CoreExtension())
+  end
+
+end

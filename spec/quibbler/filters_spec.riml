@@ -1,0 +1,193 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'object_cache.riml'
+riml_include 'memoizer.riml'
+riml_include 'inflector.riml'
+riml_include 'inflections.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'filters.riml'
+riml_include 'filter_factory.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+
+class FiltersSpec
+  defm describe
+    return 'FiltersSpec'
+  end
+
+  defm it_can_filter_to_uppercase
+    f = new UppercaseFilter()
+    expect(f.filter('foo')).to_equal('FOO')
+  end
+
+  defm it_can_filter_to_lowercase
+    f = new LowercaseFilter()
+    expect(f.filter('FOO')).to_equal('foo')
+  end
+
+end
+
+class MockTemplateContext
+  defm lookup(key)
+    return self[key]
+  end
+end
+
+class FiltersE2ESpec
+  defm describe
+    return 'FiltersE2ESpec'
+  end
+
+  defm before
+    self.lexer = new Lexer()
+    self.compiler = new Compiler()
+    self.context = new MockTemplateContext()
+    self.inflector = new Inflector()
+    self.inflector.on_inject()
+    self.filter_factory = f = new FilterFactory()
+    self.filter_factory.inflector = self.inflector
+    self.filter_factory.on_inject()
+    self.compiler.filter_factory = self.filter_factory
+  end
+
+  defm after
+  end
+
+  defm render(source)
+    tokens = self.lexer.scan(source)
+    template = self.compiler.compile(tokens)
+    return template.render(self.context)
+  end
+
+  defm it_can_filter_to_plural
+    self.context.source = 'category'
+    result = self.render('%{source|plural}')
+    expect(result).to_equal('categories')
+  end
+
+  defm it_can_filter_to_singular
+    self.context.source = 'categories'
+    result = self.render('%{source|singular}')
+    expect(result).to_equal('category')
+  end
+
+  defm it_can_filter_to_uppercase
+    self.context.source = 'foo'
+    result = self.render('%{source|upper}')
+    expect(result).to_equal('FOO')
+  end
+
+  defm it_can_filter_to_lowercase
+    self.context.source = 'FOO'
+    result = self.render('%{source|lower}')
+    expect(result).to_equal('foo')
+  end
+
+  defm it_can_filter_to_camelcase
+    self.context.source = 'lorem_ipsum'
+    result = self.render('%{source|camel}')
+    expect(result).to_equal('LoremIpsum')
+  end
+
+  defm it_can_filter_to_lower_camelcase
+    self.context.source = 'lorem_ipsum'
+    result = self.render('%{source|lcamel}')
+    expect(result).to_equal('loremIpsum')
+  end
+
+  defm it_can_filter_to_lowercase
+    self.context.foo = 'FOO'
+    result = self.render('%{foo|lower}')
+    expect(result).to_equal('foo')
+  end
+  defm it_can_filter_to_underscore
+    self.context.source = 'LoremIpsumDolor'
+    result = self.render('%{source|underscore}')
+    expect(result).to_equal('lorem_ipsum_dolor')
+  end
+
+  defm it_can_filter_to_human
+    self.context.source = 'lorem_ipsum_dolor'
+    result = self.render('%{source|human}')
+    expect(result).to_equal('lorem ipsum dolor')
+  end
+
+  defm it_can_filter_to_dash
+    self.context.source = 'lorem_ipsum_dolor'
+    result = self.render('%{source|dash}')
+    expect(result).to_equal('lorem-ipsum-dolor')
+  end
+
+  defm it_can_filter_to_dash
+    self.context.source = 'LoremIpsumDolor'
+    result = self.render('%{source|title}')
+    expect(result).to_equal('Lorem Ipsum Dolor')
+  end
+
+  defm it_can_filter_to_table
+    self.context.source = 'PersonCategory'
+    result = self.render('%{source|table}')
+    expect(result).to_equal('person_categories')
+  end
+
+  defm it_can_filter_to_class
+    self.context.source = 'person_categories'
+    result = self.render('%{source|class}')
+    expect(result).to_equal('PersonCategory')
+  end
+
+  defm it_can_filter_with_s_modifier
+    self.context.source = 'foo'
+    result = self.render('%s')
+    expect(result).to_equal('foo')
+  end
+
+  defm it_can_filter_with_S_modifier
+    self.context.source = 'lorem_ipsum'
+    result = self.render('%S')
+    expect(result).to_equal('LoremIpsum')
+  end
+
+  defm it_can_filter_with_p_modifier
+    self.context.source = 'PersonCategory'
+    result = self.render('%p')
+    expect(result).to_equal('PersonCategories')
+  end
+
+  defm it_can_filter_with_i_modifier
+    self.context.source = 'PersonCategories'
+    result = self.render('%i')
+    expect(result).to_equal('PersonCategory')
+  end
+
+  defm it_can_filter_with_h_modifier
+    self.context.source = 'lorem_ipsum_dolor'
+    result = self.render('%h')
+    expect(result).to_equal('lorem ipsum dolor')
+
+    self.context.source = 'person_id'
+    result = self.render('%h')
+    expect(result).to_equal('person')
+  end
+
+  defm it_can_filter_with_chains
+    self.context.source = 'person_category'
+    result = self.render('%{ source | plural | singular | plural | title }')
+    expect(result).to_equal('Person Categories')
+  end
+
+  defm it_throws_lexical_errors_for_bad_templates
+    self.context.source = 'person_category'
+
+    try
+      result = self.render('%{ source | plural | }')
+      caught_exception = false
+    catch /LexicalError/
+      caught_exception = true
+    end
+
+    expect(caught_exception).to_be_true()
+  end
+end

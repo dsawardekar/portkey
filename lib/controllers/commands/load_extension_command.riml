@@ -1,0 +1,14 @@
+class LoadExtensionCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'LoadExtension'
+  end
+
+  defm run(extension, opts)
+    extensions = self.lookup('extensions')
+    extensions.add_extension(extension)
+  end
+end

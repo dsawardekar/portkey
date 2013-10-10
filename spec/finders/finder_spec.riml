@@ -1,0 +1,143 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'object_cache.riml'
+riml_include 'finder.riml'
+
+class MockFinder
+  def initialize(name)
+    self.name = name
+    self.result = true
+  end
+
+  defm find(context, collector)
+    self.context = context
+    collector.add(self.name)
+    return self.result
+  end
+end
+
+class FinderCollectorSpec
+  defm describe
+    return 'FinderCollectorSpec'
+  end
+
+  defm it_can_add_files_to_end
+    c = new FinderCollector()
+    c.add('a')
+    c.add('b')
+    c.add('c')
+
+    expect(c.get_results()).to_equal(['a', 'b', 'c'])
+  end
+
+  defm it_can_add_files_to_start
+    c = new FinderCollector()
+    c.insert('a')
+    c.insert('b')
+    c.insert('c')
+
+    expect(c.get_results()).to_equal(['c', 'b', 'a'])
+  end
+
+  defm it_ignores_duplicates
+    c = new FinderCollector()
+    c.add('a')
+    c.add('a')
+    c.add('a')
+
+    expect(c.get_results()).to_equal(['a'])
+  end
+
+  defm it_can_detect_presence_of_path
+    c = new FinderCollector()
+    c.add('a')
+    expect(c.has('b')).to_be_false()
+    expect(c.has('a')).to_be_true()
+  end
+
+  defm it_can_remove_path
+    c = new FinderCollector()
+    c.add('a')
+    c.add('b')
+    c.remove('a')
+
+    expect(c.get_results()).to_equal(['b'])
+  end
+end
+
+class FinderSpec
+  defm describe
+    return 'FinderSpec'
+  end
+
+  defm before_each
+    self.finder = new Finder()
+  end
+
+  defm after_each
+    :unlet self.finder
+  end
+
+  defm it_can_store_projection_finder
+    self.finder.add_finder('projection', new MockFinder('a'))
+    expect(self.finder.get_finders('projection')[0].name).to_equal('a')
+  end
+
+  defm it_can_store_resource_finder
+    self.finder.add_finder('resource', new MockFinder('a'))
+    expect(self.finder.get_finders('resource')[0].name).to_equal('a')
+  end
+
+  defm it_can_store_file_finder
+    self.finder.add_finder('file', new MockFinder('a'))
+    expect(self.finder.get_finders('file')[0].name).to_equal('a')
+  end
+
+  defm it_can_find_projections
+    finder = new Finder()
+    finder.add_finder('projection', new MockFinder('a'))
+    finder.add_finder('projection', new MockFinder('b'))
+    finder.add_finder('projection', new MockFinder('c'))
+
+    results = finder.find('projection', {})
+    expect(results).to_equal(['c', 'b', 'a'])
+  end
+
+  defm it_can_find_resources
+    finder = new Finder()
+    finder.add_finder('resource', new MockFinder('a'))
+    finder.add_finder('resource', new MockFinder('b'))
+    finder.add_finder('resource', new MockFinder('c'))
+
+    results = finder.find('resource', {})
+    expect(results).to_equal(['c', 'b', 'a'])
+  end
+
+  defm it_can_find_files
+    finder = new Finder()
+    finder.add_finder('file', new MockFinder('a'))
+    finder.add_finder('file', new MockFinder('b'))
+    finder.add_finder('file', new MockFinder('c'))
+
+    results = finder.find('file', {})
+    expect(results).to_equal(['c', 'b', 'a'])
+  end
+
+  defm it_stops_finding_if_finder_returns_false
+    finder = new Finder()
+    finder.add_finder('file', new MockFinder('a'))
+
+    f = new MockFinder('b')
+    f.result = false
+    finder.add_finder('file', f)
+    finder.add_finder('file', new MockFinder('c'))
+
+    results = finder.find('file', {})
+    expect(results).to_equal(['c', 'b'])
+
+    f.result = true
+    results = finder.find('file', {})
+    expect(results).to_equal(['c', 'b', 'a'])
+  end
+
+end

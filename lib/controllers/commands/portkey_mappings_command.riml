@@ -1,0 +1,44 @@
+class PortkeyMappingsCommand < PortkeyCommand
+  def initialize(container)
+    super(container)
+  end
+
+  defm get_name
+    return 'PortkeyMappings'
+  end
+
+  defm has_ex_mode
+    return true
+  end
+
+  defm get_bang
+    return true
+  end
+
+  defm run(opts)
+    unless has_ctrlp_plugin()
+      echo_error('Portkey: CtrlP plugin not found.')
+      return
+    end
+
+    unless self.buffer_has_context()
+      return
+    end
+
+    projections = self.get_current_projections()
+    mappings = projections.get_mappings()
+    Callback = create_delegate(self, 'null')
+    map_loader = new MapLoader(Callback)
+
+    if opts.bang
+      map_loader.unload(mappings)
+      :silent! nunmap <LocalLeader><LocalLeader>
+
+      unless has_key(opts, 'silent') && opts.silent
+        echo_warn('Portkey: mappings cleared.')
+      end
+    else
+      map_loader.print(mappings)
+    end
+  end
+end

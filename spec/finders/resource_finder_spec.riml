@@ -1,0 +1,61 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'object_cache.riml'
+riml_include 'buffer.riml'
+riml_include 'projection_inc.riml'
+riml_include 'template_context.riml'
+riml_include 'resource_finder.riml'
+riml_include 'filename_matcher.riml'
+riml_include 'data_frame.riml'
+riml_include 'finder.riml'
+riml_include 'globber.riml'
+
+class ResourceFinderSpec
+  defm describe
+    return 'ResourceFinderSpec'
+  end
+
+  defm it_can_find_files_from_pattern
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    buffer.find_root()
+
+    projection = new Projection('foo')
+    finder = new ResourceFinder()
+    finder.globber = new Globber()
+    pattern_list = []
+    add(pattern_list, new ProjectionPattern('*.rb', {}))
+
+    data = new ResourceDataFrame(buffer)
+    data.set_pattern_list(pattern_list)
+
+    context = new TemplateContext(data)
+    collector = new FinderCollector()
+    finder.find(context, collector)
+    files = collector.get_results()
+
+    expect(files).to_have_file('foo.rb')
+    expect(files).to_have_file('foo_spec.rb')
+  end
+
+  defm it_can_glob_specific_pattern
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    buffer.find_root()
+
+    projection = new Projection('foo')
+    finder = new ResourceFinder()
+    finder.globber = new Globber()
+    pattern_list = []
+    add(pattern_list, new ProjectionPattern('*_spec.rb', {}))
+
+    data = new ResourceDataFrame(buffer)
+    data.set_pattern_list(pattern_list)
+
+    context = new TemplateContext(data)
+    collector = new FinderCollector()
+    finder.find(context, collector)
+    files = collector.get_results()
+
+    expect(files).to_not_have_file('foo.rb')
+    expect(files).to_have_file('foo_spec.rb')
+  end
+end

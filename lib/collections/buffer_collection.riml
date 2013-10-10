@@ -1,0 +1,24 @@
+class BufferCollection
+  def initialize
+    self.buffers = []
+  end
+
+  defm has_current
+    return has_key(self, 'current')
+  end
+
+  defm get_current
+    return self.current
+  end
+
+  defm set_current(current)
+    self.current = current
+    add(self.buffers, current)
+  end
+
+  defm clear
+    for buffer in self.buffers
+      buffer.reset()
+    end
+  end
+end

@@ -1,0 +1,21 @@
+class Globber
+  defm glob(path, pattern)
+    file_pattern = self.get_glob_pattern(pattern)
+    files_str = globpath(path, file_pattern)
+    files = split(files_str, '\n')
+
+    return files
+  end
+
+  defm get_glob_pattern(pattern)
+    if !pattern.is_recursive()
+      return pattern.get_original()
+    else
+      return self.get_recursive_pattern(pattern.get_original())
+    end
+  end
+
+  defm get_recursive_pattern(pattern)
+    return substitute(pattern, '\V**', '**/*', '')
+  end
+end

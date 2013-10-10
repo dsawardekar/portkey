@@ -1,0 +1,33 @@
+class BufferOpener
+  def initialize
+    self.is_buffer_opener = true
+  end
+
+  defm needs
+    return ['context', 'file_opener']
+  end
+
+  defm open(filepath, create_if_not_found, window_mode)
+    rel_path = self.get_rel_path(filepath)
+    file_exists = filereadable(rel_path)
+
+    if file_exists || create_if_not_found
+      self.file_opener.open(rel_path, window_mode)
+      return true
+    else
+      return false
+    end
+  end
+
+  defm get_abs_root
+    return self.context.get_root()
+  end
+
+  defm get_rel_path(filepath)
+    return fnamemodify(self.get_abs_path(filepath), ':.')
+  end
+
+  defm get_abs_path(filepath)
+    return "#{self.get_abs_root()}#{filepath}"
+  end
+end

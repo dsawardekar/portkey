@@ -1,0 +1,63 @@
+class CoreExtension
+  defm needs
+    return ['projector']
+  end
+
+  defm get_name
+    return 'core'
+  end
+
+  defm get_scope
+    return 'global'
+  end
+
+  defm get_portkey_path(type, variant)
+    return 'portkey.json'
+  end
+
+  defm load
+    return true
+  end
+
+  defm get_finder(type)
+    if type == 'projection'
+      return new ProjectionFinder(self.lookup('projector'))
+    elseif type == 'resource'
+      return new ResourceFinder()
+    elseif type == 'file'
+      return new FileFinder()
+    else
+      return false
+    end
+  end
+
+  defm get_ranker(type)
+    if type == 'projection'
+      return new ProjectionRanker()
+    else
+      return false
+    end
+  end
+
+  defm get_syntax_files
+    return {}
+  end
+
+  defm get_extractors
+    return [new LinesExtractor()]
+  end
+
+  defm configure_inflector(inflector)
+  end
+
+  defm configure_projection(projection)
+  end
+
+  defm get_filters()
+    return {}
+  end
+
+  defm lookup(name)
+    return self.container.lookup(name)
+  end
+end

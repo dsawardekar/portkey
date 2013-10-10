@@ -1,0 +1,113 @@
+class Logger
+  def initialize
+    self.messages = []
+    self.log_writers = []
+    self.level = 'info'
+
+    self.levels = {}
+    self.levels.all = 0
+    self.levels.debug = 1
+    self.levels.info = 2
+    self.levels.warn = 3
+    self.levels.error = 4
+    self.levels.fatal = 5
+    self.levels.off = 6
+
+    self.colors = {}
+    self.colors.all = 0
+    self.colors.debug = 0
+    self.colors.info = 0
+    self.colors.warn = '31m'
+    self.colors.error = '31m'
+    self.colors.fatal = '31m'
+    self.colors.off = 0
+  end
+
+  defm add_log_writer(log_writer)
+    add(self.log_writers, log_writer)
+  end
+
+  defm set_level(level)
+    self.level = level
+  end
+
+  defm get_level
+    return self.level
+  end
+
+  defm get_level_num(level)
+    return self.levels[level]
+  end
+
+  defm is_loggable(level)
+    return self.get_level_num(level) >= self.get_level_num(self.level)
+  end
+
+  defm do_log(args, level)
+    if self.is_loggable(level)
+      msg = self.args_to_message(args)
+      self.send_log(msg, level)
+    end
+  end
+
+  defm args_to_message(args)
+    return join(args, ' ')
+  end
+
+  defm send_log(msg, level)
+    color_msg = self.to_color(msg, level)
+
+    for log_writer in self.log_writers
+      if log_writer.get_colorize()
+        log_writer.log(color_msg)
+      else
+        log_writer.log(msg)
+      end
+    end
+  end
+
+  defm to_color(msg, level)
+    color = self.colors[level]
+    if color != 0
+      return "[#{color}#{msg}[0m"
+    else
+      return msg
+    end
+  end
+
+  defm debug(*args)
+    self.do_log(args, 'debug')
+  end
+
+  defm info(*args)
+    self.do_log(args, 'info')
+  end
+
+  defm log(*args)
+    self.do_log(args, 'info')
+  end
+
+  defm warn(*args)
+    self.do_log(args, 'warn')
+  end
+
+  defm error(*args)
+    self.do_log(args, 'error')
+  end
+
+  defm fatal(*args)
+    self.do_log(args, 'fatal')
+  end
+
+end
+
+def get_logger()
+  unless exists('g:logger')
+    g:logger = new Logger()
+  end
+
+  return g:logger
+end
+
+logger = get_logger()
+

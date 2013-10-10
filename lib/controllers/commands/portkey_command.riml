@@ -1,0 +1,96 @@
+class PortkeyCommand < BaseCommand
+  def initialize(container)
+    super()
+    self.container = container
+  end
+
+  " when a context with projection exists we lookup on it's container
+  " else we use the app container
+  defm lookup(object)
+    c = self.container
+    buffers = c.lookup('buffers')
+
+    if buffers.has_current()
+      current_buffer = buffers.get_current()
+      contexts = c.lookup('contexts')
+      root = current_buffer.get_abs_root()
+
+      if contexts.contains(root)
+        context = contexts.get(root)
+        return context.lookup(object)
+      else
+        return c.lookup(object)
+      end
+    else
+      return c.lookup(object)
+    end
+  end
+
+  defm process(*args)
+    registry = self.lookup('registry')
+    return call(registry['run_action'], args, registry)
+  end
+
+  defm get_env_var(name)
+    return self.lookup('env').get_option(name)
+  end
+
+  " methods below are helpers of the form buffer_has_current?
+  " Note: These helpers increase lookup time avoid using inside loops
+  defm buffer_has_projection
+    return self.get_current_buffer().has_projection()
+  end
+
+  defm buffer_has_context
+    return self.get_current_contexts().contains(self.get_current_root())
+  end
+
+  defm buffer_has_enrolled
+    return self.get_current_buffer().get_enrolled()
+  end
+
+  " methods below are helpers of the form get_current_foo
+  defm get_current_buffer
+    return self.lookup('buffers').get_current()
+  end
+
+  defm get_current_buffer_path
+    return self.get_current_buffer().get_rel_path()
+  end
+
+  defm get_current_buffer_filename
+    return self.get_current_buffer().get_filename()
+  end
+
+  defm get_current_buffer_rootname
+    return self.get_current_buffer().get_rootname()
+  end
+
+  defm get_current_contexts
+    return self.lookup('contexts')
+  end
+
+  defm get_current_context
+    return self.get_current_contexts().get(self.get_current_root())
+  end
+
+  defm get_current_root
+    return self.get_current_buffer().get_abs_root()
+  end
+
+  defm get_current_projection
+    return self.get_current_buffer().get_projection()
+  end
+
+  defm get_current_projections
+    return self.get_current_context().get_projections()
+  end
+
+  defm get_current_pattern
+    return self.get_current_buffer().get_pattern()
+  end
+
+  defm get_current_resource_type
+    return self.get_current_projection().get_resource_type()
+  end
+end

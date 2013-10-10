@@ -1,0 +1,139 @@
+riml_include 'dsl.riml'
+riml_include 'plugin.riml'
+riml_include 'buffer.riml'
+riml_include 'app_mock.riml'
+
+class PluginSpec
+  defm describe
+    return 'PluginSpec'
+  end
+
+  defm before()
+    self.old_rtp = "#{&rtp}"
+    &rtp = "build,#{&rtp}"
+  end
+
+  defm after()
+    :augroup portkey_plugin
+      :autocmd!
+    :augroup END
+
+    &rtp = "#{self.old_rtp}"
+  end
+
+  defm before_each()
+    self.plugin = new Plugin()
+  end
+
+  defm after_each()
+    :unlet self.plugin
+    if exists('b:portkey_buffer')
+      :unlet b:portkey_buffer
+    end
+  end
+
+  defm it_has_not_loaded_initially()
+    expect(self.plugin.loaded()).to_be_false()
+  end
+
+  defm it_sends_buffer_open_to_app_on_buffer_open()
+    plugin = self.plugin
+    plugin.app = app = new AppMock()
+
+    app = plugin.get_app()
+    buffer = new Buffer('foo')
+    buffer.did_search = true
+    buffer.root = 'foo_root'
+    plugin.on_buffer_open(buffer)
+
+    expect(app.open_buffer).to_equal(buffer)
+  end
+
+  defm it_sends_buffer_enter_to_app_on_buffer_enter()
+    plugin = self.plugin
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('bar')
+    buffer.root = 'bar_root'
+    buffer.did_search = true
+    plugin.on_buffer_open(buffer)
+    plugin.on_buffer_enter(buffer)
+
+    expect(app.enter_buffer).to_equal(buffer)
+  end
+
+  defm it_sends_buffer_leave_to_app_on_buffer_leave()
+    plugin = self.plugin
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('bar')
+    buffer.root = 'bar_root'
+    buffer.did_search = true
+    plugin.on_buffer_open(buffer)
+    plugin.on_buffer_leave(buffer)
+
+    expect(app.leave_buffer).to_equal(buffer)
+  end
+
+  defm it_does_not_send_enter_buffer_if_no_root()
+    plugin = self.plugin
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('../without_root')
+    plugin.on_buffer_open(buffer)
+
+    plugin.on_buffer_enter(buffer)
+    expect(app).to_not_have_key('enter_buffer')
+  end
+
+  defm it_does_not_send_leave_buffer_if_no_root()
+    plugin = self.plugin
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('../without_root')
+    plugin.on_buffer_open(buffer)
+
+    plugin.on_buffer_leave(buffer)
+    expect(app).to_not_have_key('leave_buffer')
+  end
+
+end
+
+class PluginWithBufferWithRootSpec
+  defm describe
+    return 'Plugin with buffer that has a portkey.json'
+  end
+
+  defm it_sends_buffer_enter_to_app_when_buffer_has_root_focus
+    plugin = new Plugin()
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    plugin.on_buffer_open(buffer)
+
+    expect(app.open_buffer).to_equal(buffer)
+  end
+
+  def it_sends_buffer_enter_to_app_when_buffer_has_root
+    plugin = new Plugin()
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    plugin.on_buffer_open(buffer)
+    plugin.on_buffer_enter(buffer)
+
+    expect(app.enter_buffer).to_equal(buffer)
+  end
+
+  def it_sends_buffer_leave_to_app_when_buffer_has_root()
+    plugin = new Plugin()
+    plugin.app = app = new AppMock()
+
+    buffer = new Buffer('spec/projects/basic/foo.rb')
+    plugin.on_buffer_open(buffer)
+    plugin.on_buffer_enter(buffer)
+    plugin.on_buffer_leave(buffer)
+
+    expect(app.leave_buffer).to_equal(buffer)
+  end
+end

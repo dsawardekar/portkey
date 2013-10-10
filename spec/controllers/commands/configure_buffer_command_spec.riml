@@ -1,0 +1,46 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'portkey_inc.riml'
+riml_include 'app_driver.riml'
+
+class ConfigureBufferCommandSpec
+  defm describe
+    return 'ConfigureBufferCommandSpec'
+  end
+
+  defm before_each
+    self.driver = new AppDriver()
+  end
+
+  defm after_each
+    :unlet self.driver
+  end
+
+  defm it_can_configure_buffer_on_open
+    d = self.driver
+    d.start()
+
+    " new buffer inside 'basic' project with portkey.json
+    b = new Buffer('spec/projects/basic/foo.rb')
+    b.find_root()
+
+    root = b.get_abs_root()
+
+    " must not have projection initially
+    expect(b.has_projection()).to_be_false()
+
+    " open buffer
+    d.do_buffer_open(b)
+
+    " must have added root to context
+    contexts = d.lookup('contexts')
+    expect(contexts.contains(root)).to_be_true()
+
+    expect(b.has_projection()).to_be_true()
+
+    " projection must match values from portkey.json
+    p = b.get_projection()
+    expect(p.get_resource_type()).to_equal('model')
+    expect(b.get_source()).to_equal('foo')
+  end
+end

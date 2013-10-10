@@ -1,0 +1,117 @@
+class MemoizerDelegate
+  def initialize(target, method, cache_store, memoizer)
+    self.target = target
+    self.method = method
+    self.cache_store = cache_store
+    self.memoizer = memoizer
+  end
+
+  defm get_key(args)
+    if len(args) == 0
+      return 'memoizer-no-args'
+    else
+      return join(args, '_')
+    end
+  end
+
+  defm invoke(*args)
+    active = self.memoizer.memoizer_is_active()
+    key = self.get_key(args)
+
+    if active && self.cache_store.has(key)
+      return self.cache_store.get(key)
+    end
+
+    Result = call(self.target[self.method], args, self.target)
+
+    if active
+      self.cache_store.put(key, Result)
+    end
+
+    return Result
+  end
+end
+
+class Memoizer
+  def initialize(target)
+    self.memoizer_cache = {}
+    self.memoizer_target = target
+    self.memoizer_active = false
+  end
+
+  defm memoizer_get_target()
+    return self.memoizer_target
+  end
+
+  defm memoizer_load_method(Method)
+    cache_store = new ObjectCache()
+    memoizer_delegate = new MemoizerDelegate(self.memoizer_target, Method, cache_store, self)
+    Method_delegate = create_delegate(memoizer_delegate, 'invoke')
+
+    self.memoizer_cache[Method] = cache_store
+    self[Method] = Method_delegate
+  end
+
+  defm memoizer_load(*args)
+    if len(args) == 1 && type(args[0]) == type([])
+      params = args[0]
+    else
+      params = args
+    end
+
+    for param in params
+      self.memoizer_load_method(param)
+    end
+  end
+
+  defm memoizer_load_all()
+    for Method in keys(self.memoizer_target)
+      if type(self.memoizer_target[Method]) == 2
+        self.memoizer_load_method(Method)
+      end
+    end
+  end
+
+  defm memoizer_start()
+    self.memoizer_clear_all()
+    self.memoizer_active = true
+  end
+
+  defm memoizer_stop()
+    self.memoizer_active = false
+  end
+
+  defm memoizer_is_active()
+    return self.memoizer_active
+  end
+
+  defm memoizer_clear_cache(method)
+    cache_store = self.memoizer_cache[method]
+    cache_store.clear()
+  end
+
+  defm memoizer_clear_all()
+    for method in keys(self.memoizer_cache)
+      self.memoizer_clear_cache(method)
+    end
+  end
+
+  defm memoizer_get_hits()
+    hits = 0
+    for cache_store in values(self.memoizer_cache)
+      hits += cache_store.get_hits()
+    end
+
+    return hits
+  end
+
+  defm memoizer_get_misses()
+    misses = 0
+    for cache_store in values(self.memoizer_cache)
+      misses += cache_store.get_misses()
+    end
+
+    return misses
+  end
+
+end

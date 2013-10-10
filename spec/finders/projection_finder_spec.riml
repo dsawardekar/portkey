@@ -1,0 +1,73 @@
+riml_include 'dsl.riml'
+riml_include 'log_helpers.riml'
+riml_include 'object_cache.riml'
+riml_include 'memoizer.riml'
+riml_include 'token.riml'
+riml_include 'lexer_states.riml'
+riml_include 'lexer.riml'
+riml_include 'objects.riml'
+riml_include 'compiler.riml'
+riml_include 'template_context.riml'
+riml_include 'projection_inc.riml'
+riml_include 'data_frame.riml'
+riml_include 'projector.riml'
+riml_include 'projection_finder.riml'
+riml_include 'finder.riml'
+riml_include 'buffer.riml'
+
+class ProjectionFinderSpec
+  defm describe
+    return 'ProjectionFinderSpec'
+  end
+
+  defm before_each
+    self.lexer = new Lexer()
+    self.compiler = new Compiler()
+    self.compiler.filter_factory = {}
+    self.projector = new Projector()
+    self.projector.lexer = self.lexer
+    self.projector.compiler = self.compiler
+  end
+
+  defm after_each
+    :unlet self.projector
+    :unlet self.lexer
+    :unlet self.compiler
+  end
+
+  defm verify_find_files_by_type(type)
+    projection = new Projection('foo')
+    projection.add_projection_template(type, '%{source}.rb')
+    projection.add_projection_template(type, '%{source}.txt')
+    projection.add_projection_template(type, '%{source}.html')
+
+    buffer = new Buffer('foo')
+    buffer.find_root()
+
+    data = new ProjectionDataFrame(buffer)
+    data.set_projection(projection, type)
+    data.set_source('lorem')
+
+    context = new TemplateContext(data)
+    finder = new ProjectionFinder(self.projector)
+    finder.readable = true
+    collector = new FinderCollector()
+
+    finder.find(context, collector)
+    results = collector.get_results()
+    expect(results).to_equal(['lorem.rb', 'lorem.txt', 'lorem.html'])
+  end
+
+  defm it_can_find_alternate_files
+    self.verify_find_files_by_type('alternate')
+  end
+
+  defm it_can_find_related_files
+    self.verify_find_files_by_type('related')
+  end
+
+  defm it_can_find_test_files
+    self.verify_find_files_by_type('test')
+  end
+end
+
