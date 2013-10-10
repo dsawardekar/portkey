@@ -361,7 +361,8 @@ class BaseInflectorCamelizeSpec
 
   " TODO: -k switch doesn't appear to support \= expr
   defm nocp_mode
-    return exists('g:speckle_nocp_mode') && g:speckle_nocp_mode
+    return !exists('g:ctrlp_ext_vars')
+    "return exists('g:speckle_nocp_mode') && g:speckle_nocp_mode
   end
 
   defm it_can_camelize_to_classnames
