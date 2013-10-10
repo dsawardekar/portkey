@@ -8017,7 +8017,7 @@ function! <SID>s:App_add_extension(extension) dict
 endfunction
 
 " included: 'version.riml'
-let g:portkey_version = '0.1.2'
+let g:portkey_version = '0.1.3'
 " included: 'python_file_writer.riml'
 function! s:PythonFileWriterConstructor(sys_path, output_file)
   let pythonFileWriterObj = {}
