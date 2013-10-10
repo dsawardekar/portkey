@@ -383,7 +383,7 @@ With bang the entire project's context is reloaded, including it's `portkey.json
 ## Example Portkeys
 
 1. [Portkey][21]!!!
-2. [Speckle][22]
+2. [Speckle][27]
 
 ## Configuration Options
 
@@ -465,11 +465,11 @@ Portkey is a work-in-progress. Following are some of the things to be done.
 This project couldn't have been possible without the support of the following
 people. Many thanks for your kindness and generosity.
 
-1. [Luke Gruber][9] - for [Riml][2]! I don't think I would have attempted this
+1. [Luke Gruber][11] - for [Riml][2]! I don't think I would have attempted this
    plugin without it.
-2. [Tim Pope][10] - For [vim-rails][1] and for taking over my vimrc.
-3. [Kien][11] - For [CtrlP][3], without it Portkey would probably be called Floo Powder!
-4. [Abdul Qabiz][12] - For opening my eyes to the world of Vim plugins.
+2. [Tim Pope][12] - For [vim-rails][1] and for taking over my vimrc.
+3. [Kien][13] - For [CtrlP][3], without it Portkey would probably be called Floo Powder!
+4. [Abdul Qabiz][14] - For opening my eyes to the world of Vim plugins.
 
 ## Contributing
 
@@ -513,11 +513,11 @@ MIT License. Copyright © 2013 Darshan Sawardekar.
 [19]: https://github.com/tpope/vim-pathogen
 [20]: https://github.com/emberjs/ember.js
 [21]: https://github.com/dsawardekar/portkey/blob/develop/portkey.json
-[22]: https://github.com/dsawardekar/speckle/blob/develop/portkey.json
 
 [22]: https://travis-ci.org/dsawardekar/portkey.png
 [23]: https://travis-ci.org/dsawardekar/portkey
 [24]: https://gemnasium.com/dsawardekar/portkey.png
 [25]: https://gemnasium.com/dsawardekar/portkey
 [26]: https://www.twitter.com/_dsawardekar
+[27]: https://github.com/dsawardekar/speckle/blob/develop/portkey.json
 
