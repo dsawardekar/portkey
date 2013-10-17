@@ -79,10 +79,19 @@ class Plugin
   end
 
   defm can_autostart
-    if !self.loaded() && argc() == 0 && exists('g:portkey_autostart') && g:portkey_autostart && self.has_portkey_json()
+    if !self.loaded() && argc() == 0 && self.has_autostart() && self.has_portkey_json()
       return true
     else
       return false
+    end
+  end
+
+  defm has_autostart
+    if exists('g:portkey_autostart')
+      return g:portkey_autostart
+    else
+      " will autostart by default "
+      return true
     end
   end
 
