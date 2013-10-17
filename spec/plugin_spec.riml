@@ -8,12 +8,12 @@ class PluginSpec
     return 'PluginSpec'
   end
 
-  defm before()
+  defm before
     self.old_rtp = "#{&rtp}"
     &rtp = "build,#{&rtp}"
   end
 
-  defm after()
+  defm after
     :augroup portkey_plugin
       :autocmd!
     :augroup END
@@ -21,22 +21,45 @@ class PluginSpec
     &rtp = "#{self.old_rtp}"
   end
 
-  defm before_each()
+  defm before_each
     self.plugin = new Plugin()
   end
 
-  defm after_each()
+  defm after_each
     :unlet self.plugin
     if exists('b:portkey_buffer')
       :unlet b:portkey_buffer
     end
   end
 
-  defm it_has_not_loaded_initially()
+  defm it_has_not_loaded_initially
     expect(self.plugin.loaded()).to_be_false()
   end
 
-  defm it_sends_buffer_open_to_app_on_buffer_open()
+  defm it_will_autostart_by_default
+    if exists('g:portkey_autostart')
+      :unlet g:portkey_autostart
+    end
+
+    plugin = new Plugin()
+    expect(plugin.has_autostart()).to_be_true()
+  end
+
+  defm it_will_autostart_if_autostart_option_is_true
+    g:portkey_autostart = true
+
+    plugin = new Plugin()
+    expect(plugin.has_autostart()).to_be_true()
+  end
+
+  defm it_will_not_autostart_if_autostart_option_is_false
+    g:portkey_autostart = false
+
+    plugin = new Plugin()
+    expect(plugin.has_autostart()).to_be_false()
+  end
+
+  defm it_sends_buffer_open_to_app_on_buffer_open
     plugin = self.plugin
     plugin.app = app = new AppMock()
 
@@ -49,7 +72,7 @@ class PluginSpec
     expect(app.open_buffer).to_equal(buffer)
   end
 
-  defm it_sends_buffer_enter_to_app_on_buffer_enter()
+  defm it_sends_buffer_enter_to_app_on_buffer_enter
     plugin = self.plugin
     plugin.app = app = new AppMock()
 
@@ -62,7 +85,7 @@ class PluginSpec
     expect(app.enter_buffer).to_equal(buffer)
   end
 
-  defm it_sends_buffer_leave_to_app_on_buffer_leave()
+  defm it_sends_buffer_leave_to_app_on_buffer_leave
     plugin = self.plugin
     plugin.app = app = new AppMock()
 
@@ -75,7 +98,7 @@ class PluginSpec
     expect(app.leave_buffer).to_equal(buffer)
   end
 
-  defm it_does_not_send_enter_buffer_if_no_root()
+  defm it_does_not_send_enter_buffer_if_no_root
     plugin = self.plugin
     plugin.app = app = new AppMock()
 
@@ -86,7 +109,7 @@ class PluginSpec
     expect(app).to_not_have_key('enter_buffer')
   end
 
-  defm it_does_not_send_leave_buffer_if_no_root()
+  defm it_does_not_send_leave_buffer_if_no_root
     plugin = self.plugin
     plugin.app = app = new AppMock()
 
@@ -125,7 +148,7 @@ class PluginWithBufferWithRootSpec
     expect(app.enter_buffer).to_equal(buffer)
   end
 
-  def it_sends_buffer_leave_to_app_when_buffer_has_root()
+  def it_sends_buffer_leave_to_app_when_buffer_has_root
     plugin = new Plugin()
     plugin.app = app = new AppMock()
 
