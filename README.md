@@ -2,7 +2,7 @@
 
 ### Navigate files at the speed of Vim.
 
-Portkey allows you move around files in your project quickly. It is a
+Portkey allows you move to around files in your project quickly. It is a
 port of the `rails-projections` feature of [vim-rails][1] written in
 [Riml][2]. It works especially well if your project is well organized
 with common patterns of moving between files.
