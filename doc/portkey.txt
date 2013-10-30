@@ -15,19 +15,20 @@ Contents ~
  10. Extract with <range>                            |portkey-extract-with-range|
  11. Running Current Test with :Run       |portkey-running-current-test-with-run|
  12. Projection Patterns                            |portkey-projection-patterns|
- 13. Editing and Reloading Portkey.json               |portkey-editing-reloading|
- 14. Example Portkeys                                  |portkey-example-portkeys|
- 15. Configuration Options                        |portkey-configuration-options|
- 16. Extensions                                              |portkey-extensions|
- 17. System Requirements                            |portkey-system-requirements|
- 18. Installation                                          |portkey-installation|
- 19. TODO                                                          |portkey-todo|
- 20. FAQ                                                            |portkey-faq|
- 21. Authors                                                    |portkey-authors|
- 22. Thanks                                                      |portkey-thanks|
- 23. Contributing                                          |portkey-contributing|
- 24. License                                                    |portkey-license|
- 25. References                                              |portkey-references|
+ 13. Affinity                                                  |portkey-affinity|
+ 14. Editing and Reloading Portkey.json               |portkey-editing-reloading|
+ 15. Example Portkeys                                  |portkey-example-portkeys|
+ 16. Configuration Options                        |portkey-configuration-options|
+ 17. Extensions                                              |portkey-extensions|
+ 18. System Requirements                            |portkey-system-requirements|
+ 19. Installation                                          |portkey-installation|
+ 20. TODO                                                          |portkey-todo|
+ 21. FAQ                                                            |portkey-faq|
+ 22. Authors                                                    |portkey-authors|
+ 23. Thanks                                                      |portkey-thanks|
+ 24. Contributing                                          |portkey-contributing|
+ 25. License                                                    |portkey-license|
+ 26. References                                              |portkey-references|
 
 ===============================================================================
                                                           *portkey-introduction*
@@ -281,7 +282,7 @@ The exact behaviour that matches such an 'import' statement varies and hence is
 left to extensions to implement.
 
 ===============================================================================
-Extract with                                  *portkey-extract-with-range*
+Extract with range                                 *portkey-extract-with-range*
 
 Portkey provides basic re-factoring similar to 'vim-rails''s ':Rextract'. The
 difference is Portkey's extraction is done by providing a |range| to it's
@@ -391,6 +392,36 @@ Here, the source is first underscorized then camelized.
 
 ===============================================================================
                                                    *portkey-editing-reloading*
+Affinity ~
+
+The `affinity` key can be used to perform a transformation from the
+source name to the target filename. For instance, given a controllers
+names in plural like `posts_controller`. If you wish to switch to
+`singular` models from such a controller, you can use `affinity` of
+`model` to change the source name `posts` into it's singular form,
+`post`, using the affinity of `model`.
+
+>
+{
+  "app/controllers/%s_controller.rb": {
+    "type": "controller",
+    "affinity": "model",
+    "alternate": "app/models/%s.rb"
+  }
+}
+<
+
+Affinity can take the following values,
+
+Affinity   | Transformation
+-----------|----------------
+   model   | singularize
+collection | pluralize
+
+When affinity is absent, no transformation is applied to the source name.
+
+===============================================================================
+                                                   *portkey-editing-reloading*
 Editing and Reloading Portkey.json ~
 
 To edit the portkey for a project. Use,
@@ -438,6 +469,15 @@ Default: 1 (true)
 
 Whether to use '<LocalLeader>' mappings. You will also need CtrlP installed and
 a 'maplocalleader' assigned for this feature to work.
+
+Default: 1 (true)
+
+- portkey_warn_on_mapping_conflicts
+
+  If you have custom `<LocalLeader>` mappings this option allows you
+  to show warnings if portkey's `<LocalLeader>` mappings conflict
+  with yours. Conflicting mappings can be resolved using the
+  `mapping` key.
 
 Default: 1 (true)
 
@@ -500,8 +540,7 @@ Portkey is a work-in-progress. Following are some of the things to be done.
 1. Implement vim-rails's [5] jumps feature
 2. Test on Windows
 3. Document the Extension API
-4. Document Affinity
-5. Document Placeholders
+4. Document Placeholders
 
 ===============================================================================
                                                                    *portkey-faq*

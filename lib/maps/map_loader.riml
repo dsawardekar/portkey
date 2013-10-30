@@ -1,6 +1,15 @@
 class MapLoader
   def initialize(Callback)
     self.Callback = Callback
+    self.check_conflicts = false
+  end
+
+  defm set_check_conflicts(check_conflicts)
+    self.check_conflicts = check_conflicts
+  end
+
+  defm get_check_conflicts
+    return self.check_conflicts
   end
 
   defm load(mappings)
@@ -27,6 +36,7 @@ class MapLoader
       opts.silent = true
 
       map_sequence = '<LocalLeader>' . map_keys
+      short_map_sequence = '<LocalLeader>' . map_keys[0]
       builder = new MapBuilder()
       builder.lhs(map_sequence)
 
@@ -42,7 +52,11 @@ class MapLoader
       cmd = builder.build()
       cmd = 'silent! ' . cmd
 
-      ""echo_msg('"' .cmd . '"')
+      if do_load && self.has_conflict(map_keys, false)
+        echo_warn("Portkey: Mapping for #{resource_type} #{map_sequence} conflicts with #{short_map_sequence}")
+      end
+
+      "echo_msg('"' .cmd . '"')
       execute(cmd)
     end
   end
@@ -63,9 +77,15 @@ class MapLoader
       opts.silent = true
 
       map_sequence = g:maplocalleader . map_keys
+      short_map_sequence = g:maplocalleader . map_keys[0]
       line  = map_sequence
       line .= repeat(' ', 10 - len(map_sequence))
       line .= resource_type
+      line .= repeat(' ', 15 - len(resource_type))
+
+      if self.has_conflict(map_keys, true)
+        line .= " (Conflicts with #{short_map_sequence})"
+      end
 
       echo_msg(line)
       i += 1
@@ -79,6 +99,22 @@ class MapLoader
   defm get_callback_expr(arg)
     callback_name = get_delegate_name(self.Callback)
     return ":call #{callback_name}('#{arg}')<CR>"
+  end
+
+  defm has_conflict(keys, force)
+    if !(self.check_conflicts || force)
+      return false
+    end
+
+    map_sequence = '<LocalLeader>' . keys
+    short_map_sequence = '<LocalLeader>'. keys[0]
+    map_rhs = maparg(short_map_sequence)
+
+    if map_rhs =~ 'Delegate'
+      return false
+    else
+      return map_rhs != ''
+    end
   end
 
 end

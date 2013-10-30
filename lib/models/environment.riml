@@ -3,6 +3,7 @@ class Environment
     opts = {}
     opts.autostart = true
     opts.adaptive_mappings = true
+    opts.warn_on_mapping_conflicts = true
 
     self.options = opts
   end
