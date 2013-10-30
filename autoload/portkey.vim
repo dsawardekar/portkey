@@ -3218,6 +3218,7 @@ function! s:EnvironmentConstructor()
   let opts = {}
   let opts.autostart = 1
   let opts.adaptive_mappings = 1
+  let opts.warn_on_mapping_conflicts = 1
   let environmentObj.options = opts
   let environmentObj.on_inject = function('<SNR>' . s:SID() . '_s:Environment_on_inject')
   let environmentObj.load_defaults = function('<SNR>' . s:SID() . '_s:Environment_load_defaults')
@@ -5532,12 +5533,24 @@ endfunction
 function! s:MapLoaderConstructor(Callback)
   let mapLoaderObj = {}
   let mapLoaderObj.Callback = a:Callback
+  let mapLoaderObj.check_conflicts = 0
+  let mapLoaderObj.set_check_conflicts = function('<SNR>' . s:SID() . '_s:MapLoader_set_check_conflicts')
+  let mapLoaderObj.get_check_conflicts = function('<SNR>' . s:SID() . '_s:MapLoader_get_check_conflicts')
   let mapLoaderObj.load = function('<SNR>' . s:SID() . '_s:MapLoader_load')
   let mapLoaderObj.unload = function('<SNR>' . s:SID() . '_s:MapLoader_unload')
   let mapLoaderObj.do_mapping = function('<SNR>' . s:SID() . '_s:MapLoader_do_mapping')
   let mapLoaderObj.print = function('<SNR>' . s:SID() . '_s:MapLoader_print')
   let mapLoaderObj.get_callback_expr = function('<SNR>' . s:SID() . '_s:MapLoader_get_callback_expr')
+  let mapLoaderObj.has_conflict = function('<SNR>' . s:SID() . '_s:MapLoader_has_conflict')
   return mapLoaderObj
+endfunction
+
+function! <SID>s:MapLoader_set_check_conflicts(check_conflicts) dict
+  let self.check_conflicts = a:check_conflicts
+endfunction
+
+function! <SID>s:MapLoader_get_check_conflicts() dict
+  return self.check_conflicts
 endfunction
 
 function! <SID>s:MapLoader_load(mappings) dict
@@ -5560,6 +5573,7 @@ function! <SID>s:MapLoader_do_mapping(mappings, do_load) dict
     let opts.buffer = 1
     let opts.silent = 1
     let map_sequence = '<LocalLeader>' . map_keys
+    let short_map_sequence = '<LocalLeader>' . map_keys[0]
     let builder = s:MapBuilderConstructor()
     call builder.lhs(map_sequence)
     if a:do_load
@@ -5572,6 +5586,9 @@ function! <SID>s:MapLoader_do_mapping(mappings, do_load) dict
     call builder.options(opts)
     let cmd = builder.build()
     let cmd = 'silent! ' . cmd
+    if a:do_load && self.has_conflict(map_keys, 0)
+      call s:echo_warn("Portkey: Mapping for " . resource_type . " " . map_sequence . " conflicts with " . short_map_sequence)
+    endif
     execute cmd
   endfor
 endfunction
@@ -5589,9 +5606,14 @@ function! <SID>s:MapLoader_print(mappings) dict
     let opts.buffer = 1
     let opts.silent = 1
     let map_sequence = g:maplocalleader . map_keys
+    let short_map_sequence = g:maplocalleader . map_keys[0]
     let line = map_sequence
     let line .= repeat(' ', 10 - len(map_sequence))
     let line .= resource_type
+    let line .= repeat(' ', 15 - len(resource_type))
+    if self.has_conflict(map_keys, 1)
+      let line .= " (Conflicts with " . short_map_sequence . ")"
+    endif
     call s:echo_msg(line)
     let i += 1
   endfor
@@ -5603,6 +5625,20 @@ endfunction
 function! <SID>s:MapLoader_get_callback_expr(arg) dict
   let callback_name = s:get_delegate_name(self.Callback)
   return ":call " . callback_name . "('" . a:arg . "')<CR>"
+endfunction
+
+function! <SID>s:MapLoader_has_conflict(keys, force) dict
+  if !(self.check_conflicts || a:force)
+    return 0
+  endif
+  let map_sequence = '<LocalLeader>' . a:keys
+  let short_map_sequence = '<LocalLeader>' . a:keys[0]
+  let map_rhs = maparg(short_map_sequence)
+  if map_rhs =~# 'Delegate'
+    return 0
+  else
+    return map_rhs !=# ''
+  endif
 endfunction
 
 " included: 'syntax_loader.riml'
@@ -7180,11 +7216,15 @@ function! <SID>s:LoadBufferMappingsCommand_run(opts) dict
   if s:has_ctrlp_plugin() && self.buffer_has_context() && exists("g:maplocalleader") && self.get_env_var('adaptive_mappings')
     let projections = self.get_current_projections()
     let mappings = projections.get_mappings()
+    let env = self.lookup('env')
     let delegate = s:MapDelegateConstructor()
     let Callback = s:create_delegate(delegate, 'invoke')
     let map_loader = s:MapLoaderConstructor(Callback)
+    let check_conflicts = env.get_option('warn_on_mapping_conflicts')
+    call map_loader.set_check_conflicts(check_conflicts)
     call map_loader.load(mappings)
     nnoremap <LocalLeader><LocalLeader> :PortkeyMappings<CR>
+    call env.set_option('warn_on_mapping_conflicts', 0)
   endif
 endfunction
 
@@ -7410,6 +7450,8 @@ function! <SID>s:RefreshCommand_run(opts) dict
     let opts.bang = 1
     let opts.silent = 1
     call self.process('PortkeyMappings', opts)
+    let env = self.lookup('env')
+    call env.load_option('warn_on_mapping_conflicts')
     let contexts = self.get_current_contexts()
     call contexts.remove(self.get_current_root())
   endif
@@ -7456,6 +7498,7 @@ function! <SID>s:PortkeyMappingsCommand_run(opts) dict
   endif
   let projections = self.get_current_projections()
   let mappings = projections.get_mappings()
+  let env = self.lookup('env')
   let Callback = s:create_delegate(self, 'null')
   let map_loader = s:MapLoaderConstructor(Callback)
   if a:opts.bang
@@ -7465,6 +7508,7 @@ function! <SID>s:PortkeyMappingsCommand_run(opts) dict
       call s:echo_warn('Portkey: mappings cleared.')
     endif
   else
+    call map_loader.set_check_conflicts(env.get_option('warn_on_mapping_conflicts'))
     call map_loader.print(mappings)
   endif
 endfunction
