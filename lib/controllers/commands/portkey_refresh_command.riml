@@ -29,7 +29,8 @@ class RefreshCommand < PortkeyCommand
       self.process('PortkeyMappings', opts)
 
       " we want to warn on conflicts
-      self.load_option('warn_on_mapping_conflicts')
+      env = self.lookup('env')
+      env.load_option('warn_on_mapping_conflicts')
 
       " reload context
       contexts = self.get_current_contexts()

@@ -52,7 +52,7 @@ class MapLoader
       cmd = builder.build()
       cmd = 'silent! ' . cmd
 
-      if do_load && self.has_conflict(map_keys)
+      if do_load && self.has_conflict(map_keys, false)
         echo_warn("Portkey: Mapping for #{resource_type} #{map_sequence} conflicts with #{short_map_sequence}")
       end
 
@@ -83,7 +83,7 @@ class MapLoader
       line .= resource_type
       line .= repeat(' ', 15 - len(resource_type))
 
-      if self.has_conflict(map_keys)
+      if self.has_conflict(map_keys, true)
         line .= " (Conflicts with #{short_map_sequence})"
       end
 
@@ -101,8 +101,8 @@ class MapLoader
     return ":call #{callback_name}('#{arg}')<CR>"
   end
 
-  defm has_conflict(keys)
-    unless self.check_conflicts
+  defm has_conflict(keys, force)
+    if !(self.check_conflicts || force)
       return false
     end
 
