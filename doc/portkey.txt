@@ -472,6 +472,15 @@ a 'maplocalleader' assigned for this feature to work.
 
 Default: 1 (true)
 
+- portkey_warn_on_mapping_conflicts
+
+  If you have custom `<LocalLeader>` mappings this option allows you
+  to show warnings if portkey's `<LocalLeader>` mappings conflict
+  with yours. Conflicting mappings can be resolved using the
+  `mapping` key.
+
+Default: 1 (true)
+
 ===============================================================================
                                                             *portkey-extensions*
 Extensions ~
@@ -531,8 +540,7 @@ Portkey is a work-in-progress. Following are some of the things to be done.
 1. Implement vim-rails's [5] jumps feature
 2. Test on Windows
 3. Document the Extension API
-4. Document Affinity
-5. Document Placeholders
+4. Document Placeholders
 
 ===============================================================================
                                                                    *portkey-faq*
