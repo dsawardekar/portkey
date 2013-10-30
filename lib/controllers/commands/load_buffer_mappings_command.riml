@@ -11,14 +11,21 @@ class LoadBufferMappingsCommand < PortkeyCommand
     if has_ctrlp_plugin() && self.buffer_has_context() && exists("g:maplocalleader") && self.get_env_var('adaptive_mappings')
       projections = self.get_current_projections()
       mappings = projections.get_mappings()
+      env = self.lookup('env')
 
       delegate = new MapDelegate()
       Callback = create_delegate(delegate, 'invoke')
 
       map_loader = new MapLoader(Callback)
+      check_conflicts = env.get_option('warn_on_mapping_conflicts')
+      map_loader.set_check_conflicts(check_conflicts)
       map_loader.load(mappings)
 
       :nnoremap <LocalLeader><LocalLeader> :PortkeyMappings<CR>
+
+      " we only show conflict warnings once, else opening every buffer
+      " would result in warnings
+      env.set_option('warn_on_mapping_conflicts', false)
     end
   end
 end
