@@ -82,7 +82,32 @@ class MapLoaderSpec
     loader.unload(prefixes)
 
     expect(hasmapto('<LocalLeader>v')).to_be_false()
-    expect(hasmapto('<LocalLeader>v')).to_be_false()
+    expect(hasmapto('<LocalLeader>c')).to_be_false()
+  end
+
+  defm it_can_warn_on_mapping_conflict
+    unless exists('g:maplocalleader')
+      return
+    end
+
+    prefixes = []
+    :nnoremap <LocalLeader>x :echo 'localleader x'
+    expect(maparg('<LocalLeader>x')).to_not_equal('')
+
+    p = new Projection('xview')
+    add(prefixes, {'value': 'xv', 'source': p})
+
+    p = new Projection('xcontroller')
+    add(prefixes, {'value': 'xc', 'source': p})
+
+    Callback = create_delegate(self, 'run_mapping')
+    loader = new MapLoader(Callback)
+    loader.set_check_conflicts(true)
+    loader.load(prefixes)
+    loader.print(prefixes)
+
+    expect(maparg('<LocalLeader>xv')).to_not_equal('')
+    expect(maparg('<LocalLeader>xc')).to_not_equal('')
   end
 
   defm run_mapping(arg)

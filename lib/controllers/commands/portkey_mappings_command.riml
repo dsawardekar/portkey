@@ -27,6 +27,7 @@ class PortkeyMappingsCommand < PortkeyCommand
 
     projections = self.get_current_projections()
     mappings = projections.get_mappings()
+    env = self.lookup('env')
     Callback = create_delegate(self, 'null')
     map_loader = new MapLoader(Callback)
 
@@ -38,6 +39,7 @@ class PortkeyMappingsCommand < PortkeyCommand
         echo_warn('Portkey: mappings cleared.')
       end
     else
+      map_loader.set_check_conflicts(env.get_option('warn_on_mapping_conflicts'))
       map_loader.print(mappings)
     end
   end

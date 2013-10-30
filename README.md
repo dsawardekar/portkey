@@ -470,6 +470,15 @@ included extensions.
 
   Default: 1 (true)
 
+* portkey_warn_on_mapping_conflicts
+
+  If you have custom `<LocalLeader>` mappings this option allows you
+  to show warnings if portkey's `<LocalLeader>` mappings conflict
+  with yours. Conflicting mappings must be resolved using the
+  `mapping` key.
+
+  Default: 1 (true)
+
 ## Extensions
 
 Portkey can be augmented by extensions especially for frameworks that
