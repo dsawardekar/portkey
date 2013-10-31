@@ -311,6 +311,28 @@ class PortkeyLoaderSpec
     expect(c.extension_names).to_equal(['rails', 'ember'])
   end
 
+  defm it_will_load_extension_without_portkeys_for_custom_variant
+    self.extensions = new ExtensionCollection()
+    l = new PortkeyLoader(self.extensions)
+    c = new MockCollector()
+
+    self.register_extension('core')
+
+    delegate = new_delegate(self, 'register_extension')
+    self.start_group()
+    self.autoreg(":autocmd User portkey_extension_rails :call #{delegate}('rails')")
+    self.autoreg(":autocmd User portkey_extension_ember :call #{delegate}('ember')")
+    self.end_group()
+
+    path = 'spec/portkeys/custom_with_extensions.json'
+    l.load(path, c)
+
+    expect(c.paths).to_have_length(1)
+    expect(c.paths[0]).to_equal('spec/portkeys/custom_with_extensions.json')
+
+    expect(c.extension_names).to_equal(['rails', 'ember'])
+  end
+
   defm it_will_not_load_extension_if_it_has_already_loaded
     self.extensions = new ExtensionCollection()
     l = new PortkeyLoader(self.extensions)
