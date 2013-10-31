@@ -246,7 +246,9 @@ class PortkeyLoader
     end
 
     portkey_path = self.resolve_path(pathname)
+
     if portkey_path.is_custom
+      collector.add_extension(portkey_path.get_extension_name())
       return
     end
 
@@ -313,12 +315,23 @@ class PortkeyLoader
     if portkey_path.is_extension()
       " for extensions we need to lookup the portkey path
       extension_path = self.lookup_extension_path(portkey_path)
-      if extension_path != 'null'
-        portkey_path.set_filepath(extension_path)
-        return portkey_path
+
+      if extension_path == 'custom'
+        " ember:custom "
+        portkey_path.is_custom = true
+        portkey_path.is_portkey_path = false
+      elseif extension_path == 'not_found'
+        " foo:* where the extension was not installed "
+        portkey_path.is_portkey_path = false
+      elseif extension_path == 'null'
+        " foo:* where extension returned null as path "
+        portkey_path.is_portkey_path = false
       else
-        return { 'is_portkey_path': false, 'pathname': pathname, 'is_custom': true }
+        " foo:* where extension returned valid path "
+        portkey_path.set_filepath(extension_path)
       end
+
+      return portkey_path
     elseif filereadable(portkey_path.get_filepath())
       if self.root_pathname == pathname
         " we'll load core extensions in the same way
@@ -337,6 +350,11 @@ class PortkeyLoader
 
     " at this point we should have an extension registered "
     if self.extensions.has_extension(extension_name)
+      " for custom we do not need to lookup the path "
+      if portkey_path.get_pathname() =~ '\v:custom$'
+        return 'custom'
+      end
+
       extension = self.extensions.get_extension(extension_name)
       parts = portkey_path.get_extension_name_parts()
 
@@ -348,7 +366,7 @@ class PortkeyLoader
       end
     else
       echo_warn("Extension not found: #{portkey_path.get_extension_name()}")
-      return 'null'
+      return 'not_found'
     end
   end
 
