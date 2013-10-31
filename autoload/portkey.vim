@@ -4518,6 +4518,7 @@ function! <SID>s:PortkeyLoader_load(pathname, collector) dict
   endif
   let portkey_path = self.resolve_path(a:pathname)
   if portkey_path.is_custom
+    call a:collector.add_extension(portkey_path.get_extension_name())
     return
   endif
   if !(portkey_path.is_portkey_path)
@@ -4576,12 +4577,17 @@ function! <SID>s:PortkeyLoader_resolve_path(pathname) dict
   let portkey_path = s:PortkeyPathConstructor(a:pathname)
   if portkey_path.is_extension()
     let extension_path = self.lookup_extension_path(portkey_path)
-    if extension_path !=# 'null'
-      call portkey_path.set_filepath(extension_path)
-      return portkey_path
+    if extension_path ==# 'custom'
+      let portkey_path.is_custom = 1
+      let portkey_path.is_portkey_path = 0
+    elseif extension_path ==# 'not_found'
+      let portkey_path.is_portkey_path = 0
+    elseif extension_path ==# 'null'
+      let portkey_path.is_portkey_path = 0
     else
-      return {'is_portkey_path': 0, 'pathname': a:pathname, 'is_custom': 1}
+      call portkey_path.set_filepath(extension_path)
     endif
+    return portkey_path
   elseif filereadable(portkey_path.get_filepath())
     if self.root_pathname ==# a:pathname
       call self.send_extension_event('core')
@@ -4596,6 +4602,9 @@ function! <SID>s:PortkeyLoader_lookup_extension_path(portkey_path) dict
   let extension_name = a:portkey_path.get_extension_name()
   call self.send_extension_event(extension_name)
   if self.extensions.has_extension(extension_name)
+    if a:portkey_path.get_pathname() =~# '\v:custom$'
+      return 'custom'
+    endif
     let extension = self.extensions.get_extension(extension_name)
     let parts = a:portkey_path.get_extension_name_parts()
     let filepath = extension.get_portkey_path(parts.type, parts.variant)
@@ -4606,7 +4615,7 @@ function! <SID>s:PortkeyLoader_lookup_extension_path(portkey_path) dict
     endif
   else
     call s:echo_warn("Extension not found: " . a:portkey_path.get_extension_name())
-    return 'null'
+    return 'not_found'
   endif
 endfunction
 
@@ -8065,7 +8074,7 @@ function! <SID>s:App_add_extension(extension) dict
 endfunction
 
 " included: 'version.riml'
-let g:portkey_version = '0.1.7'
+let g:portkey_version = '0.1.9'
 " included: 'python_file_writer.riml'
 function! s:PythonFileWriterConstructor(sys_path, output_file)
   let pythonFileWriterObj = {}
