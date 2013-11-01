@@ -1,5 +1,10 @@
 # Changelog
 
+### 0.1.10
+
+* Changes Delegates to use expanded SID. Fixes adaptive mappings
+  for 7.3.
+
 ### 0.1.9
 
 * Fixes extension loading for `:custom` variants.
