@@ -40,6 +40,14 @@ class DelegateSpec
     expect(func_name).to_match('\v.*DelegateFunction\d+$')
   end
 
+  defm it_explicitly_expands_SID
+    Foo = create_delegate(self, 'do_delegate')
+    func_name = get_delegate_name(Foo)
+    expect(func_name).to_match('\v.*DelegateFunction\d+$')
+    expect(func_name).to_not_match('s:')
+    expect(func_name).to_match('<SID>')
+  end
+
   defm it_can_create_named_delegate
     my_delegate = new_delegate(self, 'do_delegate')
     execute(":call #{my_delegate}(1, 2, 3)")

@@ -332,7 +332,7 @@ class CommandRegistry
     " command! CtrlPAlternate :call SomeFunc('altCmdId', 'Alternate')
     builder.repr(self.get_ctrlp_repr(id, name))
     ex_cmd = builder.build()
-    ""info(ex_cmd)
+    "info(ex_cmd)
     execute(ex_cmd)
   end
 
