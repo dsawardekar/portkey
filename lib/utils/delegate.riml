@@ -71,8 +71,11 @@ end
 
 def get_delegate_name(Func)
   func_def = string(Func)
+  sid = SID()
   pattern = "\\v^function.{1}'(.*)'.{1}$"
-  return substitute(func_def, pattern, '\1', '')
+  result = substitute(func_def, pattern, '\1', '')
+  result = substitute(result, 's:', '<SNR>' . sid . '_', '')
+  return result
 end
 
 def new_delegate(scope, method)
