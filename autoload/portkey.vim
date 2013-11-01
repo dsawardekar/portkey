@@ -129,8 +129,11 @@ endfunction
 
 function! s:get_delegate_name(Func)
   let func_def = string(a:Func)
+  let sid = s:SID()
   let pattern = "\\v^function.{1}'(.*)'.{1}$"
-  return substitute(func_def, pattern, '\1', '')
+  let result = substitute(func_def, pattern, '\1', '')
+  let result = substitute(result, 's:', '<SNR>' . sid . '_', '')
+  return result
 endfunction
 
 function! s:new_delegate(scope, method)
@@ -8074,7 +8077,7 @@ function! <SID>s:App_add_extension(extension) dict
 endfunction
 
 " included: 'version.riml'
-let g:portkey_version = '0.1.9'
+let g:portkey_version = '0.1.10'
 " included: 'python_file_writer.riml'
 function! s:PythonFileWriterConstructor(sys_path, output_file)
   let pythonFileWriterObj = {}
