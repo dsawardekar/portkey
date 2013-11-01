@@ -45,7 +45,7 @@ class DelegateSpec
     func_name = get_delegate_name(Foo)
     expect(func_name).to_match('\v.*DelegateFunction\d+$')
     expect(func_name).to_not_match('s:')
-    expect(func_name).to_match('<SID>')
+    expect(func_name).to_match('<SNR>')
   end
 
   defm it_can_create_named_delegate
