@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.1.11
+
+* Upgrades to riml 0.3.9 and Speckle 0.1.29.
+
 ### 0.1.10
 
 * Changes Delegates to use expanded SID. Fixes adaptive mappings
