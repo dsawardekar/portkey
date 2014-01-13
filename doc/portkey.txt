@@ -391,7 +391,7 @@ The syntax for placeholders is, '%{source|filter1|filter2}'
 Here, the source is first underscorized then camelized.
 
 ===============================================================================
-                                                   *portkey-editing-reloading*
+                                                             *portkey-affinity*
 Affinity ~
 
 The `affinity` key can be used to perform a transformation from the
