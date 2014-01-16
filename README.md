@@ -502,11 +502,13 @@ Things extensions can do,
 
 ## System Requirements
 
-Portkey is a native Viml extension, compiled from [Riml][2]. The following
-Vim extensions are recommended but optional.
+Portkey requires at least Vim 7.3 patch97 or higher. For earlier versions of Vim
+the plugin will be disabled. The following Vim extensions are recommended but
+optional.
 
-Recommended configuration
+Recommended configuration:
 
+* Vim 7.4
 * [CtrlP][3] - *Highly Recommended*. Without CtrlP, adaptive mappings will be disabled.
 * [Syntastic][6] + [jsonlint][7] - For detecting errors when editing portkey.json
 * [vim-json][5] - Improved syntax highlighting and code folding of json
