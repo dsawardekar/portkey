@@ -1826,7 +1826,7 @@ function! <SID>s:CamelizeStrategy_get_variant(current) dict
 endfunction
 
 " included: 'version.riml'
-let g:portkey_version = '0.1.11'
+let g:portkey_version = '0.1.12'
 " included: 'base_command.riml'
 function! s:BaseCommandConstructor()
   let baseCommandObj = {}

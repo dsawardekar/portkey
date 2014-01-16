@@ -12,6 +12,8 @@ endfunction
 
 if exists('g:portkey_plugin_loaded')
   finish
+elseif v:version <# 703 || (v:version ==# 703 && !has('patch97'))
+  finish
 endif
 " included: 'autocmd_loader.riml'
 function! s:AutocmdLoaderConstructor()
