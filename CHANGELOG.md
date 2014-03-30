@@ -1,5 +1,10 @@
 # Changelog
 
+### 0.1.13
+
+* Upgrades Riml to 0.4.0
+* Upgrades Speckle to 0.1.31
+
 ### 0.1.12
 
 * Adds a minimum requirements check. Silently stops loading portkey
