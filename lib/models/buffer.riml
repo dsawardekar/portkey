@@ -18,7 +18,7 @@ class Buffer
 
   defm find_root
     parent_dir = fnamemodify(self.path, ':p:h')
-    portkey_json = findfile(self.root_marker, "#{parent_dir};")
+    portkey_json = findfile(self.root_marker, "#{escape(parent_dir, ' ')};")
     self.did_search = true
 
     if portkey_json != ''
