@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.1.14
+
+* Escapes buffer paths containing spaces.
+
 ### 0.1.13
 
 * Upgrades Riml to 0.4.0
