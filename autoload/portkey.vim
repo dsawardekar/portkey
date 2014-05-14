@@ -726,7 +726,7 @@ endfunction
 
 function! <SID>s:Buffer_find_root() dict
   let parent_dir = fnamemodify(self.path, ':p:h')
-  let portkey_json = findfile(self.root_marker, parent_dir . ";")
+  let portkey_json = findfile(self.root_marker, escape(parent_dir, ' ') . ";")
   let self.did_search = 1
   if portkey_json !=# ''
     let self.root = fnamemodify(portkey_json, ':h')
@@ -1826,7 +1826,7 @@ function! <SID>s:CamelizeStrategy_get_variant(current) dict
 endfunction
 
 " included: 'version.riml'
-let g:portkey_version = '0.1.13'
+let g:portkey_version = '0.1.14'
 " included: 'base_command.riml'
 function! s:BaseCommandConstructor()
   let baseCommandObj = {}
