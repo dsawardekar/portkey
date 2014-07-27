@@ -42,6 +42,13 @@ SPECKLE_LIB_DIRS = "#{LIB_DIRS}:#{TEST_LIB_DIRS}"
 PLUGIN_DEST = "plugin/portkey.vim"
 APP_DEST = "autoload/portkey.vim"
 
+# tek riml
+if ENV.has_key?('RIML_DIR')
+  RIML_EXEC = "#{ENV['RIML_DIR']}/bin/riml"
+else
+  RIML_EXEC = "bundle exec riml"
+end
+
 # clean task config
 CLEAN.include("#{BUILD_DIR}/**/*.vim")
 CLEAN.include("#{BUILD_DIR}/**/*.log")
@@ -61,12 +68,12 @@ end
 
 desc 'Compile plugin'
 task :compile_plugin => :build do
-  sh "bundle exec riml -c #{PLUGIN_SOURCE} -I #{LIB_DIRS} -o #{BUILD_DIR}"
+  sh "#{RIML_EXEC} -c #{PLUGIN_SOURCE} -I #{LIB_DIRS} -o #{BUILD_DIR}"
 end
 
 desc 'Compile app'
 task :compile_app => :build do
-  sh "bundle exec riml -c #{APP_SOURCE} -I #{LIB_DIRS} -o #{BUILD_DIR}"
+  sh "#{RIML_EXEC} -c #{APP_SOURCE} -I #{LIB_DIRS} -o #{BUILD_DIR}"
 end
 
 desc 'Compile all'
