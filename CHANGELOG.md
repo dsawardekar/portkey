@@ -1,5 +1,10 @@
 # Changelog
 
+### 0.2.0
+
+* Build based on @tek's Riml fork.
+  * Fixes issues with using Riml compiled code with Vim > 7.4 p260
+
 ### 0.1.14
 
 * Escapes buffer paths containing spaces.
