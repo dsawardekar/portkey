@@ -3,7 +3,7 @@ GEM
   specs:
     rake (10.2.2)
     riml (0.4.0)
-    speckle (0.1.31)
+    speckle (0.2.0)
       bundler (~> 1.6)
       rake (~> 10.2.2)
       riml (~> 0.4.0)
@@ -14,4 +14,4 @@ PLATFORMS
 DEPENDENCIES
   rake (~> 10.2.2)
   riml (~> 0.4.0)
-  speckle (~> 0.1.31)
+  speckle (~> 0.2.0)
