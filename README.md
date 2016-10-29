@@ -576,7 +576,7 @@ MIT License. Copyright © 2013 Darshan Sawardekar.
 [1]: https://github.com/tpope/vim-rails
 [2]: https://github.com/luke-gru/riml
 [3]: https://github.com/kien/ctrlp.vim
-[4]: http://pivotal.github.io/jasmine
+[4]: http://jasmine.github.io/
 [5]: https://github.com/elzr/vim-json
 [6]: https://github.com/scrooloose/syntastic
 [7]: https://github.com/codenothing/jsonlint
